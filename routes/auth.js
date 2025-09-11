@@ -13,9 +13,9 @@ router.post('/forgot-password', authController.forgotPassword);
 router.patch('/reset-password/:token', authController.resetPassword);
 
 // Rutas protegidas
-router.patch('/update-password', 
-  authController.protect, 
-  authController.updatePassword
-);
+router.use(authController.protect); // Proteger todas las rutas siguientes
+
+router.get('/me', authController.getMe); // NUEVA RUTA
+router.patch('/update-password', authController.updatePassword);
 
 module.exports = router;

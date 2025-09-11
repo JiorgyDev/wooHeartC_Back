@@ -93,6 +93,31 @@ exports.login = catchAsync(async (req, res, next) => {
   createSendToken(user, 200, res);
 });
 
+// NUEVA FUNCIÓN: Obtener datos del usuario autenticado
+exports.getMe = catchAsync(async (req, res, next) => {
+  // El middleware protect ya debe haber agregado el usuario a req.user
+  if (!req.user) {
+    return next(new AppError('Usuario no autenticado', 401));
+  }
+
+  // Buscar el usuario en la base de datos con información completa
+  const user = await User.findById(req.user.id);
+  
+  if (!user) {
+    return next(new AppError('Usuario no encontrado', 404));
+  }
+
+  // Eliminar password del output
+  user.password = undefined;
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      user
+    }
+  });
+});
+
 exports.logout = (req, res) => {
   res.cookie('jwt', 'loggedout', {
     expires: new Date(Date.now() + 10 * 1000),
