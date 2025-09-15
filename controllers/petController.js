@@ -20,13 +20,18 @@ const getPets = async (req, res) => {
     if (req.query.species) filters.species = req.query.species;
     if (req.query.breed) filters.breed = new RegExp(req.query.breed, 'i');
 
-    const pets = await Pet.find(filters)
+    console.log('📋 Obteniendo mascotas con filtros:', filters);
+const pets = await Pet.find(filters)
       .sort({ createdAt: -1 }) // Más recientes primero
       .skip(skip)
       .limit(limit)
       .lean();
 
     const totalPets = await Pet.countDocuments(filters);
+console.log(`📊 Se encontraron ${pets.length} mascotas, total: ${totalPets}`);
+pets.forEach((pet, i) => {
+  console.log(`   ${i+1}. ${pet.name} - Imagen: ${pet.imageUrl ? 'SÍ' : 'NO'}`);
+});
 
     res.status(200).json({
       success: true,
@@ -115,6 +120,8 @@ const getPetById = async (req, res) => {
 // @access  Private (temporalmente público)
 const createPet = async (req, res) => {
   try {
+    console.log('📋 Body recibido:', req.body);
+    console.log('🖼️ Archivo recibido:', req.file);
     const {
       name, species, breed, age, description, adoptionStatus
     } = req.body;
@@ -130,12 +137,14 @@ const createPet = async (req, res) => {
     };
 
     // AGREGAR IMAGEN DE CLOUDINARY SI EXISTE
-    if (req.body.imageUrl) {
-      petData.imageUrl = req.body.imageUrl;
-      petData.imagePublicId = req.body.imagePublicId;
-    }
+if (req.file) {
+  petData.imageUrl = req.file.path;
+  petData.imagePublicId = req.file.filename;
+}
 
-    const pet = await Pet.create(petData);
+    console.log('💾 Datos a guardar:', petData);
+const pet = await Pet.create(petData);
+console.log('✅ Mascota guardada:', { name: pet.name, imageUrl: pet.imageUrl });
 
     res.status(201).json({
       success: true,
@@ -146,9 +155,9 @@ const createPet = async (req, res) => {
   } catch (error) {
     console.error('Error creating pet:', error);
     // Si hay error y se subió imagen, eliminarla de Cloudinary
-    if (req.body.imagePublicId) {
+    if (req.file && req.file.filename) {
       try {
-        await cloudinary.uploader.destroy(req.body.imagePublicId);
+        await cloudinary.uploader.destroy(req.file.filename);
       } catch (deleteError) {
         console.error('Error deleting image from cloudinary:', deleteError);
       }
@@ -197,10 +206,10 @@ const updatePet = async (req, res) => {
     });
 
     // AGREGAR NUEVA IMAGEN SI EXISTE
-    if (req.body.imageUrl) {
-      updates.imageUrl = req.body.imageUrl;
-      updates.imagePublicId = req.body.imagePublicId;
-    }
+    if (req.file) {
+  updates.imageUrl = req.file.path;
+  updates.imagePublicId = req.file.filename;
+}
 
     pet = await Pet.findByIdAndUpdate(req.params.id, updates, { 
       new: true, 

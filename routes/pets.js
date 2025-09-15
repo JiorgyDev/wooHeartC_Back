@@ -34,6 +34,22 @@ router.get('/:id', getPetById); // GET /api/v1/pets/:id - Mascota específica
 // ===== RUTAS PROTEGIDAS =====
 // router.use(protect); // COMENTADO TEMPORALMENTE
 
+// Middleware de debugging
+router.use((req, res, next) => {
+  if (req.method === 'POST') {
+    console.log('🛣️ POST detectado en ruta pets');
+  }
+  next();
+});
+// Middleware de debugging
+router.use((req, res, next) => {
+  if (req.method === 'POST') {
+    console.log('🛣️ POST detectado en ruta pets');
+  }
+  next();
+});
+
+router.post('/', uploadPetImage.single('image'), handleUploadError, processUploadedImage, createPet);
 // RUTAS CON UPLOAD DE IMÁGENES
 router.post('/', uploadPetImage.single('image'), handleUploadError, processUploadedImage, createPet);
 router.put('/:id', uploadPetImage.single('image'), handleUploadError, processUploadedImage, updatePet);
