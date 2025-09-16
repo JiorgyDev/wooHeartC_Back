@@ -42,7 +42,16 @@ const petSchema = new mongoose.Schema({
     },
     default: 'available'
   },
-  // CAMPOS PARA IMÁGENES DE CLOUDINARY
+  // CAMPOS PARA MÚLTIPLES IMÁGENES DE CLOUDINARY
+  imageUrls: {
+    type: [String],
+    default: []
+  },
+  imagePublicIds: {
+    type: [String],
+    default: []
+  },
+  // CAMPOS PARA UNA IMAGEN (COMPATIBILIDAD)
   imageUrl: {
     type: String,
     default: null
