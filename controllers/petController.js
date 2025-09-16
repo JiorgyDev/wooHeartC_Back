@@ -137,7 +137,16 @@ const createPet = async (req, res) => {
     };
 
     // AGREGAR IMAGEN DE CLOUDINARY SI EXISTE
-if (req.file) {
+if (req.files && req.files.length > 0) {
+  // Múltiples imágenes
+  petData.imageUrls = req.body.imageUrls;
+  petData.imagePublicIds = req.body.imagePublicIds;
+  
+  // Compatibilidad con imagen individual
+  petData.imageUrl = req.body.imageUrl;
+  petData.imagePublicId = req.body.imagePublicId;
+} else if (req.file) {
+  // Una sola imagen (compatibilidad)
   petData.imageUrl = req.file.path;
   petData.imagePublicId = req.file.filename;
 }
@@ -206,7 +215,12 @@ const updatePet = async (req, res) => {
     });
 
     // AGREGAR NUEVA IMAGEN SI EXISTE
-    if (req.file) {
+    if (req.files && req.files.length > 0) {
+  updates.imageUrls = req.body.imageUrls;
+  updates.imagePublicIds = req.body.imagePublicIds;
+  updates.imageUrl = req.body.imageUrl;
+  updates.imagePublicId = req.body.imagePublicId;
+} else if (req.file) {
   updates.imageUrl = req.file.path;
   updates.imagePublicId = req.file.filename;
 }
