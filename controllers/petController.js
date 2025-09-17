@@ -194,14 +194,9 @@ const updatePet = async (req, res) => {
       });
     }
 
-    // Si hay nueva imagen, eliminar la anterior
-    if (req.body.imageUrl && pet.imagePublicId) {
-      try {
-        await cloudinary.uploader.destroy(pet.imagePublicId);
-      } catch (deleteError) {
-        console.error('Error deleting old image:', deleteError);
-      }
-    }
+    console.log('📋 Actualizando mascota:', req.params.id);
+    console.log('🖼️ Archivos nuevos recibidos:', req.files?.length || 0);
+    console.log('🖼️ Imágenes existentes del frontend:', req.body.existingImages);
 
     const allowedUpdates = [
       'name', 'species', 'breed', 'age', 'description', 'adoptionStatus'
@@ -214,16 +209,76 @@ const updatePet = async (req, res) => {
       }
     });
 
-    // AGREGAR NUEVA IMAGEN SI EXISTE
+    // MANEJAR IMÁGENES
+    let finalImageUrls = [];
+    let finalImagePublicIds = [];
+
+    // 1. Procesar imágenes existentes que se mantienen
+    let existingImages = [];
+    if (req.body.existingImages) {
+      try {
+        existingImages = JSON.parse(req.body.existingImages);
+      } catch (e) {
+        console.error('Error parsing existingImages:', e);
+        existingImages = [];
+      }
+    }
+
+    // 2. Identificar imágenes a eliminar de Cloudinary
+    const currentImages = pet.imageUrls || [];
+    const currentPublicIds = pet.imagePublicIds || [];
+    
+    const imagesToDelete = currentImages.filter(url => !existingImages.includes(url));
+    const publicIdsToDelete = [];
+    
+    imagesToDelete.forEach(urlToDelete => {
+      const index = currentImages.indexOf(urlToDelete);
+      if (index !== -1 && currentPublicIds[index]) {
+        publicIdsToDelete.push(currentPublicIds[index]);
+      }
+    });
+
+    // 3. Eliminar imágenes de Cloudinary
+    for (const publicId of publicIdsToDelete) {
+      try {
+        console.log('🗑️ Eliminando de Cloudinary:', publicId);
+        await cloudinary.uploader.destroy(publicId);
+      } catch (deleteError) {
+        console.error('Error deleting image from cloudinary:', deleteError);
+      }
+    }
+
+    // 4. Agregar imágenes existentes que se mantienen
+    existingImages.forEach(url => {
+      const index = currentImages.indexOf(url);
+      if (index !== -1) {
+        finalImageUrls.push(url);
+        if (currentPublicIds[index]) {
+          finalImagePublicIds.push(currentPublicIds[index]);
+        }
+      }
+    });
+
+    // 5. Agregar nuevas imágenes subidas
     if (req.files && req.files.length > 0) {
-  updates.imageUrls = req.body.imageUrls;
-  updates.imagePublicIds = req.body.imagePublicIds;
-  updates.imageUrl = req.body.imageUrl;
-  updates.imagePublicId = req.body.imagePublicId;
-} else if (req.file) {
-  updates.imageUrl = req.file.path;
-  updates.imagePublicId = req.file.filename;
-}
+      const newUrls = req.files.map(file => file.path);
+      const newPublicIds = req.files.map(file => file.filename);
+      
+      finalImageUrls = [...finalImageUrls, ...newUrls];
+      finalImagePublicIds = [...finalImagePublicIds, ...newPublicIds];
+      
+      console.log('📸 Nuevas imágenes agregadas:', newUrls.length);
+    }
+
+    // 6. Actualizar campos de imágenes
+    updates.imageUrls = finalImageUrls;
+    updates.imagePublicIds = finalImagePublicIds;
+    
+    // Mantener compatibilidad con imagen individual
+    updates.imageUrl = finalImageUrls.length > 0 ? finalImageUrls[0] : null;
+    updates.imagePublicId = finalImagePublicIds.length > 0 ? finalImagePublicIds[0] : null;
+
+    console.log('💾 Imágenes finales a guardar:', finalImageUrls.length);
 
     pet = await Pet.findByIdAndUpdate(req.params.id, updates, { 
       new: true, 
