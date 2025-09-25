@@ -77,7 +77,7 @@ exports.updateAvatar = catchAsync(async (req, res, next) => {
 
   // Subir nueva imagen
   const result = await cloudinary.uploader.upload(req.file.path, {
-    folder: 'wooheart/avatars',
+    folder: '/avatars',
     width: 300,
     height: 300,
     crop: 'fill'

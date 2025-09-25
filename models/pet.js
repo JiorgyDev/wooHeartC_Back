@@ -35,13 +35,13 @@ const petSchema = new mongoose.Schema({
     maxlength: [500, 'La descripción no puede exceder 500 caracteres']
   },
   adoptionStatus: {
-    type: String,
-    enum: {
-      values: ['available', 'pending', 'adopted'],
-      message: 'El estado debe ser: available, pending o adopted'
-    },
-    default: 'available'
+  type: String,
+  enum: {
+    values: ['available', 'pending', 'adopted', 'hidden'], // ← Agregamos 'hidden'
+    message: 'El estado debe ser: available, pending, adopted o hidden'
   },
+  default: 'available'
+},
   // CAMPOS PARA MÚLTIPLES IMÁGENES DE CLOUDINARY
   imageUrls: {
     type: [String],
