@@ -184,6 +184,11 @@ console.log('✅ Mascota guardada:', { name: pet.name, imageUrl: pet.imageUrl })
 // @route   PUT /api/v1/pets/:id
 // @access  Private (temporalmente público)
 const updatePet = async (req, res) => {
+   console.log('🔄 UPDATE PET LLAMADO:', req.params.id);
+  console.log('📦 DATOS RECIBIDOS:', req.body);
+  console.log('📦 adoptionStatus que llega:', req.body.adoptionStatus);
+  
+  
   try {
     let pet = await Pet.findById(req.params.id);
 
@@ -285,6 +290,7 @@ const updatePet = async (req, res) => {
       runValidators: true 
     });
 
+    console.log('💾 MASCOTA ACTUALIZADA:', pet.adoptionStatus);
     res.status(200).json({
       success: true,
       message: 'Mascota actualizada exitosamente',
