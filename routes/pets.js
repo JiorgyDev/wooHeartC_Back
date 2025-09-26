@@ -67,7 +67,13 @@ router.use((req, res, next) => {
 
 // RUTAS CON UPLOAD DE IMÁGENES - ACTUALIZADO PARA MÚLTIPLES IMÁGENES
 router.post('/', uploadPetImages.array('images', 5), handleUploadError, processUploadedImages, createPet);
+
+// NUEVA RUTA: Para actualizaciones simples SIN imágenes (como cambiar adoptionStatus)
+router.put('/:id/status', updatePet); // PUT /api/v1/pets/:id/status - Solo datos, sin imágenes
+
+// RUTA EXISTENTE: Para actualizaciones CON imágenes
 router.put('/:id', uploadPetImages.array('images', 5), handleUploadError, processUploadedImages, updatePet);
+
 router.delete('/:id', deletePet); // DELETE /api/v1/pets/:id - Eliminar mascota
 
 // Rutas de interacción
