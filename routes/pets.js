@@ -69,7 +69,10 @@ router.use((req, res, next) => {
 router.post('/', uploadPetImages.array('images', 5), handleUploadError, processUploadedImages, createPet);
 
 // NUEVA RUTA: Para actualizaciones simples SIN imágenes (como cambiar adoptionStatus)
-router.put('/:id/status', updatePet); // PUT /api/v1/pets/:id/status - Solo datos, sin imágenes
+router.patch('/:id/adopt-status', (req, res) => {
+  // Llamar directamente a updatePet sin middlewares
+  updatePet(req, res);
+});
 
 // RUTA EXISTENTE: Para actualizaciones CON imágenes
 router.put('/:id', uploadPetImages.array('images', 5), handleUploadError, processUploadedImages, updatePet);
