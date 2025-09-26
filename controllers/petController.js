@@ -12,26 +12,30 @@ const getPets = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Filtros opcionales
-    const filters = {
-      adoptionStatus: 'available'
-    };
+    // Filtros opcionales - MODIFICADO PARA SER FLEXIBLE
+    const filters = {};
+
+    if (req.query.adoptionStatus) {
+      filters.adoptionStatus = req.query.adoptionStatus;
+    } else {
+      filters.adoptionStatus = 'available';
+    }
 
     if (req.query.species) filters.species = req.query.species;
     if (req.query.breed) filters.breed = new RegExp(req.query.breed, 'i');
 
     console.log('📋 Obteniendo mascotas con filtros:', filters);
-const pets = await Pet.find(filters)
+    const pets = await Pet.find(filters)
       .sort({ createdAt: -1 }) // Más recientes primero
       .skip(skip)
       .limit(limit)
       .lean();
 
     const totalPets = await Pet.countDocuments(filters);
-console.log(`📊 Se encontraron ${pets.length} mascotas, total: ${totalPets}`);
-pets.forEach((pet, i) => {
-  console.log(`   ${i+1}. ${pet.name} - Imagen: ${pet.imageUrl ? 'SÍ' : 'NO'}`);
-});
+    console.log(`📊 Se encontraron ${pets.length} mascotas, total: ${totalPets}`);
+    pets.forEach((pet, i) => {
+      console.log(`   ${i+1}. ${pet.name} - Imagen: ${pet.imageUrl ? 'SÍ' : 'NO'}`);
+    });
 
     res.status(200).json({
       success: true,
