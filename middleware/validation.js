@@ -1,5 +1,6 @@
 // middleware/validation.js
 const AppError = require('../utils/appError');
+const { ROLES } = require('../models/user');
 
 exports.validateRegister = (req, res, next) => {
   const { name, email, password, role } = req.body;
@@ -23,12 +24,15 @@ exports.validateRegister = (req, res, next) => {
   }
   
   // Validar role si se proporciona
-  const validRoles = ['user', 'shelter', 'admin'];
+  const validRoles = Object.values(ROLES).concat(['shelter']);
   if (role && !validRoles.includes(role)) {
     return next(new AppError('Rol inválido', 400));
   }
   
   // Si es refugio, validar organización
+  if (role === ROLES.SHELTER_COORDINATOR && !req.body.organizationName) {
+  return next(new AppError('El nombre del refugio es requerido para coordinadores', 400));
+}
   if (role === 'shelter' && !req.body.organizationName) {
     return next(new AppError('El nombre de la organización es requerido para refugios', 400));
   }

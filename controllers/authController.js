@@ -1,19 +1,23 @@
 // controllers/authController.js
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const { ROLES } = require('../models/user');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const crypto = require('crypto');
 
 // Función para crear y enviar JWT
-const signToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+const signToken = (id, role) => {
+  return jwt.sign({ 
+    id, 
+    role
+  }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '90d',
   });
 };
 
 const createSendToken = (user, statusCode, res) => {
-  const token = signToken(user._id);
+const token = signToken(user._id, user.role);  
   
   const cookieOptions = {
     expires: new Date(
@@ -52,13 +56,14 @@ exports.register = catchAsync(async (req, res, next) => {
     name,
     email,
     password,
-    role: role || 'user',
+    role: role || ROLES.USER,
     phone,
     location
   };
 
   // Si es refugio, agregar nombre de organización
-  if (role === 'shelter') {
+  // Si es refugio, agregar nombre de organización
+if (role === ROLES.SHELTER_COORDINATOR) {
     if (!organizationName) {
       return next(new AppError('El nombre de la organización es requerido para refugios', 400));
     }
@@ -158,7 +163,11 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   // 4) Verificar si el usuario cambió la contraseña después de que se emitió el token
   // (implementar según necesidades)
-
+if (decoded.role && decoded.role !== currentUser.role) {
+  return next(
+    new AppError('Tu rol ha cambiado. Por favor inicia sesión nuevamente.', 401)
+  );
+}
   // Otorgar acceso a la ruta protegida
   req.user = currentUser;
   next();
@@ -174,8 +183,23 @@ exports.restrictTo = (...roles) => {
     next();
   };
 };
+// MIDDLEWARES ESPECÍFICOS POR ROL
+exports.adminOnly = exports.restrictTo(ROLES.ADMIN);
+
+exports.shelterCoordinatorOrAdmin = exports.restrictTo(
+  ROLES.SHELTER_COORDINATOR, 
+  ROLES.ADMIN
+);
+
+exports.authenticatedUsers = exports.restrictTo(
+  ROLES.USER, 
+  ROLES.SHELTER_COORDINATOR, 
+  ROLES.ADMIN
+);
 
 exports.forgotPassword = catchAsync(async (req, res, next) => {
+  // MIDDLEWARES ESPECÍFICOS POR ROL
+
   // 1) Obtener usuario basado en email
   const user = await User.findOne({ email: req.body.email });
   if (!user) {

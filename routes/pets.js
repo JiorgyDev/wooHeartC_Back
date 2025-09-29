@@ -16,8 +16,8 @@ const {
   searchPets
 } = require('../controllers/petController');
 
-// Importar middlewares - ACTUALIZADO PARA MÚLTIPLES IMÁGENES
-const { protect } = require('./auth');
+// Importar middlewares
+const { protect, shelterCoordinatorOrAdmin, authenticatedUsers } = require('../controllers/authController');
 const { uploadPetImages, handleUploadError, processUploadedImages } = require('../middleware/upload');
 
 // ===== RUTAS PÚBLICAS =====
@@ -34,7 +34,6 @@ router.get('/test/upload', (req, res) => {
 });
 
 // IMPORTANTE: Las rutas específicas DEBEN ir ANTES que las rutas con parámetros (:id)
-
 router.get('/', getPets); // GET /api/v1/pets - Feed principal
 
 // RUTA DE PRUEBA SIN IMAGEN
@@ -49,13 +48,12 @@ router.post('/test/simple', (req, res) => {
 
 router.get('/popular', getPopularPets); // GET /api/v1/pets/popular - Mascotas populares  
 router.get('/search', searchPets); // GET /api/v1/pets/search - Búsqueda
-router.get('/user/my-pets', getMyPets); // GET /api/v1/pets/user/my-pets - Mis mascotas
 
 // Esta ruta DEBE ir después de todas las rutas específicas
 router.get('/:id', getPetById); // GET /api/v1/pets/:id - Mascota específica
 
 // ===== RUTAS PROTEGIDAS =====
-// router.use(protect); // COMENTADO TEMPORALMENTE
+router.use(protect); // Proteger rutas que requieren autenticación
 
 // Middleware de debugging
 router.use((req, res, next) => {
@@ -65,16 +63,16 @@ router.use((req, res, next) => {
   next();
 });
 
-// RUTAS CON UPLOAD DE IMÁGENES - ACTUALIZADO PARA MÚLTIPLES IMÁGENES
+// Ruta para obtener mis mascotas (requiere autenticación)
+router.get('/user/my-pets', getMyPets); // GET /api/v1/pets/user/my-pets - Mis mascotas
+
+// RUTAS CON UPLOAD DE IMÁGENES
 router.post('/', uploadPetImages.array('images', 5), handleUploadError, processUploadedImages, createPet);
 
-// NUEVA RUTA: Para actualizaciones simples SIN imágenes (como cambiar adoptionStatus)
-router.patch('/:id/adopt-status', (req, res) => {
-  // Llamar directamente a updatePet sin middlewares
-  updatePet(req, res);
-});
+// RUTA: Para actualizaciones simples SIN imágenes (como cambiar adoptionStatus)
+router.patch('/:id/adopt-status', updatePet);
 
-// RUTA EXISTENTE: Para actualizaciones CON imágenes
+// RUTA: Para actualizaciones CON imágenes
 router.put('/:id', uploadPetImages.array('images', 5), handleUploadError, processUploadedImages, updatePet);
 
 router.delete('/:id', deletePet); // DELETE /api/v1/pets/:id - Eliminar mascota

@@ -1,6 +1,12 @@
 // models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+// ENUM DE ROLES
+const ROLES = {
+  ADMIN: 'admin',
+  SHELTER_COORDINATOR: 'shelter_coordinator', 
+  USER: 'user'
+};
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -48,10 +54,11 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   role: {
-    type: String,
-    enum: ['user', 'shelter', 'admin'],
-    default: 'user'
-  },
+  type: String,
+  enum: Object.values(ROLES),
+  default: ROLES.USER,
+  required: true
+},
   // Para refugios/organizaciones
   organizationName: {
     type: String,
@@ -59,6 +66,22 @@ const userSchema = new mongoose.Schema({
       return this.role === 'shelter';
     }
   },
+  // INFORMACIÓN ESPECÍFICA PARA COORDINADORES DE REFUGIO
+shelterInfo: {
+  name: {
+    type: String,
+    required: function() {
+      return this.role === ROLES.SHELTER_COORDINATOR;
+    }
+  },
+  address: String,
+  phone: String,
+  description: String,
+  isVerified: {
+    type: Boolean,
+    default: false
+  }
+},
   // Estadísticas del usuario
   stats: {
     followers: { type: Number, default: 0 },
@@ -104,6 +127,7 @@ userSchema.index({ role: 1 });
 userSchema.index({ 'stats.totalPosts': -1 });
 
 // Middleware para hashear password antes de guardar
+// MIDDLEWARE PARA MIGRAR ROLES EXISTENTES
 userSchema.pre('save', async function(next) {
   // Solo hashear si el password fue modificado
   if (!this.isModified('password')) return next();
@@ -133,3 +157,4 @@ userSchema.virtual('followingCount').get(function() {
 });
 
 module.exports = mongoose.model('User', userSchema);
+module.exports.ROLES = ROLES;
