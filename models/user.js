@@ -1,6 +1,7 @@
 // models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+
 // ENUM DE ROLES
 const ROLES = {
   ADMIN: 'admin',
@@ -29,7 +30,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'La contraseña es requerida'],
     minlength: [6, 'La contraseña debe tener al menos 6 caracteres'],
-    select: false // No incluir password en queries por defecto
+    select: false
   },
   avatar: {
     type: String,
@@ -54,34 +55,29 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   role: {
-  type: String,
-  enum: Object.values(ROLES),
-  default: ROLES.USER,
-  required: true
-},
-  // Para refugios/organizaciones
-  organizationName: {
     type: String,
-    required: function() {
-      return this.role === 'shelter';
-    }
+    enum: Object.values(ROLES),
+    default: ROLES.USER,
+    required: true
   },
-  // INFORMACIÓN ESPECÍFICA PARA COORDINADORES DE REFUGIO
-shelterInfo: {
-  name: {
+  // Para refugios/organizaciones (mantener por compatibilidad)
+  organizationName: {
     type: String,
     required: function() {
       return this.role === ROLES.SHELTER_COORDINATOR;
     }
   },
-  address: String,
-  phone: String,
-  description: String,
-  isVerified: {
-    type: Boolean,
-    default: false
-  }
-},
+  // INFORMACIÓN ESPECÍFICA PARA COORDINADORES DE REFUGIO
+  shelterInfo: {
+    name: String,
+    address: String,
+    phone: String,
+    description: String,
+    isVerified: {
+      type: Boolean,
+      default: false
+    }
+  },
   // Estadísticas del usuario
   stats: {
     followers: { type: Number, default: 0 },
@@ -96,10 +92,10 @@ shelterInfo: {
   }],
   // Preferencias de adopción
   adoptionPreferences: {
-    animalTypes: [String], // ['dog', 'cat', 'bird', 'other']
-    sizes: [String], // ['small', 'medium', 'large']
-    ages: [String], // ['young', 'adult', 'senior']
-    maxDistance: { type: Number, default: 50 } // km
+    animalTypes: [String],
+    sizes: [String],
+    ages: [String],
+    maxDistance: { type: Number, default: 50 }
   },
   // Configuración de notificaciones
   notifications: {
@@ -126,14 +122,28 @@ userSchema.index({ location: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ 'stats.totalPosts': -1 });
 
-// Middleware para hashear password antes de guardar
-// MIDDLEWARE PARA MIGRAR ROLES EXISTENTES
+// MIDDLEWARE ÚNICO: Migración de roles Y hasheo de password
 userSchema.pre('save', async function(next) {
-  // Solo hashear si el password fue modificado
-  if (!this.isModified('password')) return next();
+  // 1. Migrar rol 'shelter' a 'shelter_coordinator' si existe
+  if (this.role === 'shelter') {
+    this.role = ROLES.SHELTER_COORDINATOR;
+  }
   
-  // Hashear password con cost de 12
-  this.password = await bcrypt.hash(this.password, 12);
+  // 2. Si es shelter_coordinator y tiene organizationName, copiar a shelterInfo
+  if (this.role === ROLES.SHELTER_COORDINATOR && this.organizationName) {
+    if (!this.shelterInfo) {
+      this.shelterInfo = {};
+    }
+    if (!this.shelterInfo.name) {
+      this.shelterInfo.name = this.organizationName;
+    }
+  }
+  
+  // 3. Hashear password solo si fue modificado
+  if (this.isModified('password')) {
+    this.password = await bcrypt.hash(this.password, 12);
+  }
+  
   next();
 });
 
