@@ -122,42 +122,45 @@ const getPetById = async (req, res) => {
 // @desc    Crear nueva mascota
 // @route   POST /api/v1/pets
 // @access  Private (temporalmente público)
+
 const createPet = async (req, res) => {
   try {
     console.log('📋 Body recibido:', req.body);
-    console.log('🖼️ Archivo recibido:', req.file);
-    const {
-      name, species, breed, age, description, adoptionStatus
-    } = req.body;
+    console.log('🖼️ Archivos recibidos:', req.files?.length || 0);
+    
+    const { name, species, breed, age, description, adoptionStatus } = req.body;
 
-    // Crear la mascota con los datos básicos
+    // Validar campos requeridos
+    if (!name || !species || !age) {
+      return res.status(400).json({
+        success: false,
+        message: 'Faltan campos requeridos: name, species, age'
+      });
+    }
+
+    // Crear objeto de mascota
     const petData = {
       name,
       species,
-      breed,
-      age,
-      description,
+      breed: breed || 'Sin especificar',
+      age: parseInt(age),
+      description: description || '',
       adoptionStatus: adoptionStatus || 'available'
     };
 
-    // AGREGAR IMAGEN DE CLOUDINARY SI EXISTE
-if (req.files && req.files.length > 0) {
-  // Múltiples imágenes
-  petData.imageUrls = req.body.imageUrls;
-  petData.imagePublicIds = req.body.imagePublicIds;
-  
-  // Compatibilidad con imagen individual
-  petData.imageUrl = req.body.imageUrl;
-  petData.imagePublicId = req.body.imagePublicId;
-} else if (req.file) {
-  // Una sola imagen (compatibilidad)
-  petData.imageUrl = req.file.path;
-  petData.imagePublicId = req.file.filename;
-}
+    // Agregar imágenes si existen (ya procesadas por el middleware)
+    if (req.body.imageUrls && req.body.imageUrls.length > 0) {
+      petData.imageUrls = req.body.imageUrls;
+      petData.imagePublicIds = req.body.imagePublicIds;
+      petData.imageUrl = req.body.imageUrl;
+      petData.imagePublicId = req.body.imagePublicId;
+    }
 
     console.log('💾 Datos a guardar:', petData);
-const pet = await Pet.create(petData);
-console.log('✅ Mascota guardada:', { name: pet.name, imageUrl: pet.imageUrl });
+    
+    const pet = await Pet.create(petData);
+    
+    console.log('✅ Mascota creada exitosamente:', pet._id);
 
     res.status(201).json({
       success: true,
@@ -166,23 +169,27 @@ console.log('✅ Mascota guardada:', { name: pet.name, imageUrl: pet.imageUrl })
     });
 
   } catch (error) {
-    console.error('Error creating pet:', error);
-    // Si hay error y se subió imagen, eliminarla de Cloudinary
-    if (req.file && req.file.filename) {
-      try {
-        await cloudinary.uploader.destroy(req.file.filename);
-      } catch (deleteError) {
-        console.error('Error deleting image from cloudinary:', deleteError);
+    console.error('❌ Error creando mascota:', error);
+    
+    // Limpiar imágenes de Cloudinary si hubo error
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        try {
+          await cloudinary.uploader.destroy(file.filename);
+        } catch (deleteError) {
+          console.error('Error eliminando imagen:', deleteError);
+        }
       }
     }
     
     res.status(400).json({
       success: false,
-      message: 'Error al crear la mascota',
+      message: error.message || 'Error al crear la mascota',
       error: error.message
     });
   }
 };
+
 
 // @desc    Actualizar mascota
 // @route   PUT /api/v1/pets/:id
