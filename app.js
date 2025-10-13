@@ -37,7 +37,7 @@ app.use(
 
 // Rate limiting
 const limiter = rateLimit({
-  max: process.env.RATE_LIMIT_MAX || 100,
+  max: process.env.RATE_LIMIT_MAX || 1000,
   windowMs: process.env.RATE_LIMIT_WINDOW_MS || 60 * 60 * 1000, // 1 hora
   message: "Demasiadas peticiones desde esta IP, intenta de nuevo en una hora.",
 });
