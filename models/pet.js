@@ -34,7 +34,7 @@ const petSchema = new mongoose.Schema(
       type: String,
       required: [true, "La descripción es requerida"],
       trim: true,
-      maxlength: [500, "La descripción no puede exceder 500 caracteres"],
+      maxlength: [1000, "La descripción no puede exceder 1000 caracteres"],
     },
     adoptionStatus: {
       type: String,
