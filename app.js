@@ -87,10 +87,12 @@ app.get("/api/v1/health", (req, res) => {
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const petRoutes = require("./routes/pets"); // ← NUEVA LÍNEA
+const commentRoutes = require("./routes/comments"); 
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/pets", petRoutes); // ← NUEVA LÍNEA
+app.use("/api/v1/comments", commentRoutes);
 
 // 3) MANEJAR RUTAS NO ENCONTRADAS
 app.all("*", (req, res, next) => {
