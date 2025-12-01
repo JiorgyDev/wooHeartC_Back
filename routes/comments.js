@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const commentController = require('../controllers/commentController');
-const { protect } = require('../middleware/auth');  // Middleware de autenticación
+const { protect } = require('../controllers/authController');  // Middleware de autenticación
 
 // ============================================
 // RUTAS DE COMENTARIOS
