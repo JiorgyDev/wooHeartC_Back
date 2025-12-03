@@ -1,27 +1,18 @@
 // utils/email.js
-console.log('🔍 [EMAIL] Iniciando carga de nodemailer...');
-
-let nodemailer;
-try {
-  nodemailer = require('nodemailer');
-  console.log('✅ [EMAIL] nodemailer cargado:', typeof nodemailer);
-  console.log('✅ [EMAIL] nodemailer.createTransporter:', typeof nodemailer.createTransporter);
-  console.log('✅ [EMAIL] nodemailer keys:', Object.keys(nodemailer));
-} catch (error) {
-  console.error('❌ [EMAIL] Error cargando nodemailer:', error);
-}
-
 const sendEmail = async (options) => {
-  console.log('📧 [EMAIL] Función sendEmail ejecutada');
-  console.log('📧 [EMAIL] nodemailer disponible:', typeof nodemailer);
-  console.log('📧 [EMAIL] createTransporter disponible:', typeof nodemailer?.createTransporter);
-
-  if (!nodemailer || typeof nodemailer.createTransporter !== 'function') {
-    throw new Error('nodemailer.createTransporter no está disponible. nodemailer es: ' + typeof nodemailer);
-  }
+  console.log('📧 [EMAIL] Iniciando envío de email...');
+  
+  // Importar nodemailer dinámicamente
+  const nodemailer = require('nodemailer');
+  console.log('📧 [EMAIL] nodemailer tipo:', typeof nodemailer);
+  console.log('📧 [EMAIL] nodemailer.default:', typeof nodemailer.default);
+  
+  // Intentar usar .default si existe (problema común de ES6/CommonJS)
+  const mailer = nodemailer.default || nodemailer;
+  console.log('📧 [EMAIL] mailer.createTransporter:', typeof mailer.createTransporter);
 
   // 1) Crear transportador
-  const transporter = nodemailer.createTransporter({
+  const transporter = mailer.createTransporter({
     host: process.env.EMAIL_HOST,
     port: process.env.EMAIL_PORT,
     secure: false,
@@ -30,6 +21,8 @@ const sendEmail = async (options) => {
       pass: process.env.EMAIL_PASSWORD
     }
   });
+
+  console.log('📧 [EMAIL] Transporter creado');
 
   // 2) Definir opciones del email
   const mailOptions = {
@@ -40,9 +33,13 @@ const sendEmail = async (options) => {
     html: options.html
   };
 
+  console.log('📧 [EMAIL] Enviando a:', options.email);
+
   // 3) Enviar el email
-  await transporter.sendMail(mailOptions);
-  console.log('✅ [EMAIL] Email enviado exitosamente a:', options.email);
+  const info = await transporter.sendMail(mailOptions);
+  console.log('✅ [EMAIL] Email enviado exitosamente:', info.messageId);
+  
+  return info;
 };
 
 module.exports = sendEmail;
