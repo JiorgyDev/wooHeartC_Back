@@ -18,6 +18,8 @@ router.post('/login', validateLogin, authController.login);
 router.post('/logout', authController.logout);
 router.post('/forgot-password', authController.forgotPassword);
 router.patch('/reset-password/:token', authController.resetPassword);
+router.post('/send-verification-code', authController.sendVerificationCode);
+router.post('/verify-email', authController.verifyEmail);
 
 // LOG ANTES DE PROTEGER
 router.use((req, res, next) => {

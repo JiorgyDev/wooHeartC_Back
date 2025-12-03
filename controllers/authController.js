@@ -5,6 +5,7 @@ const { ROLES } = require('../models/user');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const crypto = require('crypto');
+const sendEmail = require('../utils/email');
 
 // Función para crear y enviar JWT
 const signToken = (id, role) => {
@@ -70,9 +71,53 @@ if (role === ROLES.SHELTER_COORDINATOR) {
     userData.organizationName = organizationName;
   }
 
-  const newUser = await User.create(userData);
+ const newUser = await User.create(userData);
 
-  createSendToken(newUser, 201, res);
+// ============================================
+// ENVIAR CÓDIGO DE VERIFICACIÓN AUTOMÁTICAMENTE
+// ============================================
+try {
+  // Generar código de 6 dígitos
+  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Guardar código hasheado
+  newUser.verificationCode = crypto
+    .createHash('sha256')
+    .update(verificationCode)
+    .digest('hex');
+  
+  newUser.verificationCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutos
+
+  await newUser.save({ validateBeforeSave: false });
+
+  // Enviar email
+  await sendEmail({
+    email: newUser.email,
+    subject: 'Bienvenido a WooHeart - Verifica tu email',
+    message: `Hola ${newUser.name}, bienvenido a WooHeart!\n\nTu código de verificación es: ${verificationCode}\n\nEste código expira en 10 minutos.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #FE8043;">¡Bienvenido a WooHeart! 🐾</h2>
+        <p>Hola <strong>${newUser.name}</strong>,</p>
+        <p>Gracias por registrarte en WooHeart. Para completar tu registro, verifica tu email con el siguiente código:</p>
+        <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #2A1617; border-radius: 8px; margin: 20px 0;">
+          ${verificationCode}
+        </div>
+        <p>Este código expirará en <strong>10 minutos</strong>.</p>
+        <p>Si no te registraste en WooHeart, ignora este email.</p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #999; font-size: 12px;">WooHeart - Conectando corazones con mascotas</p>
+      </div>
+    `
+  });
+
+  console.log('✅ Código de verificación enviado a:', newUser.email);
+} catch (err) {
+  console.error('❌ Error enviando email de verificación:', err);
+  // No bloqueamos el registro si falla el email
+}
+
+createSendToken(newUser, 201, res);
 });
 
 exports.login = catchAsync(async (req, res, next) => {
@@ -311,3 +356,124 @@ exports.isLoggedIn = async (req, res, next) => {
   }
   next();
 };
+
+// ============================================
+// VERIFICACIÓN DE EMAIL
+// ============================================
+
+exports.sendVerificationCode = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return next(new AppError('Por favor proporciona un email', 400));
+  }
+
+  // Buscar usuario
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return next(new AppError('No existe usuario con ese email', 404));
+  }
+
+  // Si ya está verificado
+  if (user.isVerified) {
+    return res.status(200).json({
+      status: 'success',
+      message: 'El email ya está verificado'
+    });
+  }
+
+  // Generar código de 6 dígitos
+  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Guardar código hasheado y expiración (10 minutos)
+  user.verificationCode = crypto
+    .createHash('sha256')
+    .update(verificationCode)
+    .digest('hex');
+  
+  user.verificationCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutos
+
+  await user.save({ validateBeforeSave: false });
+
+  // Enviar email
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: 'Código de verificación - WooHeart',
+      message: `Tu código de verificación es: ${verificationCode}\n\nEste código expira en 10 minutos.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #FE8043;">Verificación de Email - WooHeart</h2>
+          <p>Hola <strong>${user.name}</strong>,</p>
+          <p>Tu código de verificación es:</p>
+          <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #2A1617; border-radius: 8px; margin: 20px 0;">
+            ${verificationCode}
+          </div>
+          <p>Este código expirará en <strong>10 minutos</strong>.</p>
+          <p>Si no solicitaste este código, ignora este email.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+          <p style="color: #999; font-size: 12px;">WooHeart - Conectando corazones con mascotas</p>
+        </div>
+      `
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Código de verificación enviado al email'
+    });
+  } catch (err) {
+    user.verificationCode = undefined;
+    user.verificationCodeExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    console.error('Error enviando email:', err);
+    return next(
+      new AppError('Error enviando el email. Intenta de nuevo más tarde.', 500)
+    );
+  }
+});
+
+exports.verifyEmail = catchAsync(async (req, res, next) => {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    return next(new AppError('Por favor proporciona email y código', 400));
+  }
+
+  // Hashear el código proporcionado
+  const hashedCode = crypto
+    .createHash('sha256')
+    .update(code)
+    .digest('hex');
+
+  // Buscar usuario con código válido y no expirado
+  const user = await User.findOne({
+    email,
+    verificationCode: hashedCode,
+    verificationCodeExpires: { $gt: Date.now() }
+  });
+
+  if (!user) {
+    return next(new AppError('Código inválido o expirado', 400));
+  }
+
+  // Marcar como verificado y limpiar código
+  user.isVerified = true;
+  user.verificationCode = undefined;
+  user.verificationCodeExpires = undefined;
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Email verificado exitosamente',
+    data: {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isVerified: user.isVerified
+      }
+    }
+  });
+});
