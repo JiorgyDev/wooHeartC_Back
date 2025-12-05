@@ -1,4 +1,4 @@
-// utils/email.js - CON RESEND
+// utils/email.js - SOLUCIÓN TEMPORAL
 const { Resend } = require('resend');
 
 const sendEmail = async (options) => {
@@ -6,20 +6,19 @@ const sendEmail = async (options) => {
   console.log('📧 [RESEND] Destinatario:', options.email);
   console.log('📧 [RESEND] Subject:', options.subject);
   
-  // Verificar que la API Key esté configurada
-  if (!process.env.RESEND_API_KEY) {
-    console.error('❌ [RESEND] RESEND_API_KEY no está configurada en .env');
-    throw new Error('RESEND_API_KEY no está configurada');
+  // SOLUCIÓN TEMPORAL: Hardcodear la API Key
+  const RESEND_KEY = process.env.RESEND_API_KEY || 're_Xr6qci3c_E2GtM6HJuNoq75aAGMWxqCfT';
+  
+  if (!RESEND_KEY || RESEND_KEY === 're_Xr6qci3c_E2GtM6HJuNoq75aAGMWxqCfT') {
+    console.error('❌ [RESEND] RESEND_API_KEY no configurada');
+    throw new Error('RESEND_API_KEY no configurada');
   }
 
   try {
-    // Inicializar Resend
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = new Resend(RESEND_KEY);
     
     console.log('📧 [RESEND] Cliente inicializado');
-    console.log('📧 [RESEND] Preparando mensaje...');
 
-    // Preparar el email
     const emailData = {
       from: process.env.EMAIL_FROM || 'WooHeart <onboarding@resend.dev>',
       to: [options.email],
@@ -27,37 +26,23 @@ const sendEmail = async (options) => {
       html: options.html || `<p>${options.message}</p>`,
     };
 
-    console.log('📧 [RESEND] Datos del email:');
-    console.log('  - from:', emailData.from);
-    console.log('  - to:', emailData.to);
-    console.log('  - subject:', emailData.subject);
-
-    // Enviar email
     console.log('📧 [RESEND] 🚀 Enviando email...');
     const { data, error } = await resend.emails.send(emailData);
 
-    // Verificar si hubo error
     if (error) {
-      console.error('❌ [RESEND] Error de Resend:', error);
-      throw new Error(error.message || 'Error al enviar email con Resend');
+      console.error('❌ [RESEND] Error:', error);
+      throw new Error(error.message);
     }
 
-    // Éxito
-    console.log('✅ [RESEND] ¡Email enviado exitosamente!');
-    console.log('📧 [RESEND] ID del mensaje:', data.id);
+    console.log('✅ [RESEND] Email enviado! ID:', data.id);
 
     return {
       success: true,
-      messageId: data.id,
-      data: data
+      messageId: data.id
     };
 
   } catch (error) {
-    console.error('❌ [RESEND] ==================== ERROR COMPLETO ====================');
-    console.error('❌ [RESEND] Error name:', error.name);
-    console.error('❌ [RESEND] Error message:', error.message);
-    console.error('❌ [RESEND] Error stack:', error.stack);
-    console.error('❌ [RESEND] =========================================================');
+    console.error('❌ [RESEND] Error:', error.message);
     throw error;
   }
 };
