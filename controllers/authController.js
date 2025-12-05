@@ -63,20 +63,19 @@ exports.register = catchAsync(async (req, res, next) => {
   };
 
   // Si es refugio, agregar nombre de organización
-  // Si es refugio, agregar nombre de organización
-if (role === ROLES.SHELTER_COORDINATOR) {
+  if (role === ROLES.SHELTER_COORDINATOR) {
     if (!organizationName) {
       return next(new AppError('El nombre de la organización es requerido para refugios', 400));
     }
     userData.organizationName = organizationName;
   }
 
- const newUser = await User.create(userData);
+  const newUser = await User.create(userData);
 
-// ============================================
-// ENVIAR CÓDIGO DE VERIFICACIÓN AUTOMÁTICAMENTE
-// ============================================
-try {
+  // ============================================
+  // ENVIAR CÓDIGO DE VERIFICACIÓN AUTOMÁTICAMENTE
+  // ============================================
+
   // Generar código de 6 dígitos
   const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -85,13 +84,21 @@ try {
     .createHash('sha256')
     .update(verificationCode)
     .digest('hex');
-  
+
   newUser.verificationCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutos
 
   await newUser.save({ validateBeforeSave: false });
 
-  // Enviar email
-  await sendEmail({
+  console.log('✅ Usuario guardado con código de verificación');
+
+  // ⚡ RESPONDER INMEDIATAMENTE AL CLIENTE
+  // NO esperamos el email para responder
+  createSendToken(newUser, 201, res);
+
+  // ============================================
+  // 🚀 ENVIAR EMAIL EN BACKGROUND (sin await)
+  // ============================================
+  sendEmail({
     email: newUser.email,
     subject: 'Bienvenido a WooHeart - Verifica tu email',
     message: `Hola ${newUser.name}, bienvenido a WooHeart!\n\nTu código de verificación es: ${verificationCode}\n\nEste código expira en 10 minutos.`,
@@ -109,16 +116,17 @@ try {
         <p style="color: #999; font-size: 12px;">WooHeart - Conectando corazones con mascotas</p>
       </div>
     `
+  })
+  .then(() => {
+    console.log('✅ [ASYNC] Email de verificación enviado exitosamente a:', newUser.email);
+  })
+  .catch((err) => {
+    console.error('❌ [ASYNC] Error enviando email de verificación:', err);
+    // El email falló, pero el usuario ya fue creado y la respuesta enviada
   });
-
-  console.log('✅ Código de verificación enviado a:', newUser.email);
-} catch (err) {
-  console.error('❌ Error enviando email de verificación:', err);
-  // No bloqueamos el registro si falla el email
-}
-
-createSendToken(newUser, 201, res);
 });
+
+// ← AQUÍ TERMINA register, continúa con exports.login
 
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
