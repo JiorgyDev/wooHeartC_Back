@@ -33,16 +33,26 @@ const sendEmail = async (options) => {
       tls: {
         rejectUnauthorized: false
       },
-      debug: true, // Activar debug
-      logger: true  // Activar logs
+      debug: true,
+      logger: true,
+      // AGREGAR TIMEOUTS
+      connectionTimeout: 10000, // 10 segundos
+      greetingTimeout: 10000,
+      socketTimeout: 10000
     });
 
     console.log('📧 [EMAIL] Transporter creado correctamente');
 
     // Verificar conexión
     console.log('📧 [EMAIL] Verificando conexión SMTP...');
-    await transporter.verify();
-    console.log('✅ [EMAIL] Conexión SMTP verificada');
+    
+    try {
+      await transporter.verify();
+      console.log('✅ [EMAIL] Conexión SMTP verificada exitosamente');
+    } catch (verifyError) {
+      console.error('❌ [EMAIL] Error en verificación SMTP:', verifyError);
+      throw verifyError;
+    }
 
     // Preparar opciones del email
     const mailOptions = {
@@ -53,30 +63,37 @@ const sendEmail = async (options) => {
       html: options.html || options.message
     };
 
-    console.log('📧 [EMAIL] Opciones del email:');
+    console.log('📧 [EMAIL] Opciones del email preparadas');
     console.log('  - from:', mailOptions.from);
     console.log('  - to:', mailOptions.to);
     console.log('  - subject:', mailOptions.subject);
 
     // Enviar email
-    console.log('📧 [EMAIL] Enviando email...');
+    console.log('📧 [EMAIL] 🚀 Iniciando envío real del mensaje...');
     const info = await transporter.sendMail(mailOptions);
 
-    console.log('✅ [EMAIL] Email enviado exitosamente!');
+    console.log('✅ [EMAIL] ¡Email enviado exitosamente!');
     console.log('📧 [EMAIL] Message ID:', info.messageId);
     console.log('📧 [EMAIL] Response:', info.response);
+    console.log('📧 [EMAIL] Accepted:', info.accepted);
+    console.log('📧 [EMAIL] Rejected:', info.rejected);
 
     return {
       success: true,
-      messageId: info.messageId
+      messageId: info.messageId,
+      response: info.response
     };
 
   } catch (error) {
-    console.error('❌ [EMAIL] Error completo:', error);
+    console.error('❌ [EMAIL] ==================== ERROR COMPLETO ====================');
     console.error('❌ [EMAIL] Error name:', error.name);
     console.error('❌ [EMAIL] Error message:', error.message);
     console.error('❌ [EMAIL] Error code:', error.code);
+    console.error('❌ [EMAIL] Error command:', error.command);
+    console.error('❌ [EMAIL] Error response:', error.response);
+    console.error('❌ [EMAIL] Error responseCode:', error.responseCode);
     console.error('❌ [EMAIL] Error stack:', error.stack);
+    console.error('❌ [EMAIL] =========================================================');
     throw error;
   }
 };
