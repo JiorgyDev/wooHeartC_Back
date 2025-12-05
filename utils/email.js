@@ -1,40 +1,48 @@
-// utils/email.js - SOLUCIÓN DIRECTA
+// utils/email.js - ENVIAR A TU EMAIL REGISTRADO
 const { Resend } = require('resend');
 
 const sendEmail = async (options) => {
   console.log('📧 [RESEND] Iniciando envío de email...');
-  console.log('📧 [RESEND] Destinatario:', options.email);
+  console.log('📧 [RESEND] Email original:', options.email);
   console.log('📧 [RESEND] Subject:', options.subject);
 
   try {
-    // ⚠️ PEGA TU API KEY AQUÍ DIRECTAMENTE (entre las comillas)
     const resend = new Resend('re_Xr6qci3c_E2GtM6HJuNoq75aAGMWxqCfT');
     
     console.log('📧 [RESEND] Cliente Resend inicializado');
-    console.log('📧 [RESEND] Preparando email...');
+
+    // ⚠️ MIENTRAS NO VERIFIQUES DOMINIO, ENVIAR A TU EMAIL
+    const emailDestino = 'giorgylezano@gmail.com'; // Tu email registrado en Resend
+    
+    console.log('📧 [RESEND] ⚠️ MODO DESARROLLO: Enviando a', emailDestino);
+    console.log('📧 [RESEND] (Email original era:', options.email, ')');
 
     const { data, error } = await resend.emails.send({
       from: 'WooHeart <onboarding@resend.dev>',
-      to: [options.email],
-      subject: options.subject,
-      html: options.html || `<p>${options.message}</p>`,
+      to: [emailDestino], // ← Siempre a tu email
+      subject: `[PARA: ${options.email}] ${options.subject}`, // ← Indica para quién era
+      html: `
+        <div style="background: #fffbcc; padding: 10px; border: 2px solid #ffa500; margin-bottom: 20px;">
+          <strong>⚠️ MODO DESARROLLO</strong><br>
+          Este email debería ir a: <strong>${options.email}</strong><br>
+          Pero se envía a tu email porque el dominio no está verificado.
+        </div>
+        ${options.html || `<p>${options.message}</p>`}
+      `,
     });
 
     if (error) {
-      console.error('❌ [RESEND] Error de Resend:', error);
+      console.error('❌ [RESEND] Error:', error);
       throw new Error(error.message);
     }
 
-    console.log('✅ [RESEND] ¡Email enviado exitosamente!');
-    console.log('📧 [RESEND] ID del mensaje:', data.id);
+    console.log('✅ [RESEND] ¡Email enviado a tu email de prueba!');
+    console.log('📧 [RESEND] ID:', data.id);
 
-    return {
-      success: true,
-      messageId: data.id,
-    };
+    return { success: true, messageId: data.id };
 
   } catch (error) {
-    console.error('❌ [RESEND] Error completo:', error.message);
+    console.error('❌ [RESEND] Error:', error.message);
     throw error;
   }
 };
