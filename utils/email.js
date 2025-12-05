@@ -1,99 +1,63 @@
-// utils/email.js
-const nodemailer = require('nodemailer');
+// utils/email.js - CON RESEND
+const { Resend } = require('resend');
 
 const sendEmail = async (options) => {
-  console.log('📧 [EMAIL] Iniciando envío de email...');
-  console.log('📧 [EMAIL] Destinatario:', options.email);
-  console.log('📧 [EMAIL] Subject:', options.subject);
+  console.log('📧 [RESEND] Iniciando envío de email...');
+  console.log('📧 [RESEND] Destinatario:', options.email);
+  console.log('📧 [RESEND] Subject:', options.subject);
   
-  // Verificar variables de entorno
-  console.log('📧 [EMAIL] Variables de entorno:');
-  console.log('  - EMAIL_HOST:', process.env.EMAIL_HOST);
-  console.log('  - EMAIL_PORT:', process.env.EMAIL_PORT);
-  console.log('  - EMAIL_USER:', process.env.EMAIL_USER);
-  console.log('  - EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '***configurada***' : 'NO CONFIGURADA');
-  console.log('  - EMAIL_FROM:', process.env.EMAIL_FROM);
-
-  if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-    throw new Error('Variables de entorno de email no configuradas correctamente');
+  // Verificar que la API Key esté configurada
+  if (!process.env.RESEND_API_KEY) {
+    console.error('❌ [RESEND] RESEND_API_KEY no está configurada en .env');
+    throw new Error('RESEND_API_KEY no está configurada');
   }
 
   try {
-    // Crear transportador
-    console.log('📧 [EMAIL] Creando transporter...');
+    // Inicializar Resend
+    const resend = new Resend(process.env.RESEND_API_KEY);
     
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: Number(process.env.EMAIL_PORT),
-      secure: false, // true para 465, false para 587
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-      },
-      tls: {
-        rejectUnauthorized: false
-      },
-      debug: true,
-      logger: true,
-      // AGREGAR TIMEOUTS
-      connectionTimeout: 10000, // 10 segundos
-      greetingTimeout: 10000,
-      socketTimeout: 10000
-    });
+    console.log('📧 [RESEND] Cliente inicializado');
+    console.log('📧 [RESEND] Preparando mensaje...');
 
-    console.log('📧 [EMAIL] Transporter creado correctamente');
-
-    // Verificar conexión
-    console.log('📧 [EMAIL] Verificando conexión SMTP...');
-    
-    try {
-      await transporter.verify();
-      console.log('✅ [EMAIL] Conexión SMTP verificada exitosamente');
-    } catch (verifyError) {
-      console.error('❌ [EMAIL] Error en verificación SMTP:', verifyError);
-      throw verifyError;
-    }
-
-    // Preparar opciones del email
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: options.email,
+    // Preparar el email
+    const emailData = {
+      from: process.env.EMAIL_FROM || 'WooHeart <onboarding@resend.dev>',
+      to: [options.email],
       subject: options.subject,
-      text: options.message,
-      html: options.html || options.message
+      html: options.html || `<p>${options.message}</p>`,
     };
 
-    console.log('📧 [EMAIL] Opciones del email preparadas');
-    console.log('  - from:', mailOptions.from);
-    console.log('  - to:', mailOptions.to);
-    console.log('  - subject:', mailOptions.subject);
+    console.log('📧 [RESEND] Datos del email:');
+    console.log('  - from:', emailData.from);
+    console.log('  - to:', emailData.to);
+    console.log('  - subject:', emailData.subject);
 
     // Enviar email
-    console.log('📧 [EMAIL] 🚀 Iniciando envío real del mensaje...');
-    const info = await transporter.sendMail(mailOptions);
+    console.log('📧 [RESEND] 🚀 Enviando email...');
+    const { data, error } = await resend.emails.send(emailData);
 
-    console.log('✅ [EMAIL] ¡Email enviado exitosamente!');
-    console.log('📧 [EMAIL] Message ID:', info.messageId);
-    console.log('📧 [EMAIL] Response:', info.response);
-    console.log('📧 [EMAIL] Accepted:', info.accepted);
-    console.log('📧 [EMAIL] Rejected:', info.rejected);
+    // Verificar si hubo error
+    if (error) {
+      console.error('❌ [RESEND] Error de Resend:', error);
+      throw new Error(error.message || 'Error al enviar email con Resend');
+    }
+
+    // Éxito
+    console.log('✅ [RESEND] ¡Email enviado exitosamente!');
+    console.log('📧 [RESEND] ID del mensaje:', data.id);
 
     return {
       success: true,
-      messageId: info.messageId,
-      response: info.response
+      messageId: data.id,
+      data: data
     };
 
   } catch (error) {
-    console.error('❌ [EMAIL] ==================== ERROR COMPLETO ====================');
-    console.error('❌ [EMAIL] Error name:', error.name);
-    console.error('❌ [EMAIL] Error message:', error.message);
-    console.error('❌ [EMAIL] Error code:', error.code);
-    console.error('❌ [EMAIL] Error command:', error.command);
-    console.error('❌ [EMAIL] Error response:', error.response);
-    console.error('❌ [EMAIL] Error responseCode:', error.responseCode);
-    console.error('❌ [EMAIL] Error stack:', error.stack);
-    console.error('❌ [EMAIL] =========================================================');
+    console.error('❌ [RESEND] ==================== ERROR COMPLETO ====================');
+    console.error('❌ [RESEND] Error name:', error.name);
+    console.error('❌ [RESEND] Error message:', error.message);
+    console.error('❌ [RESEND] Error stack:', error.stack);
+    console.error('❌ [RESEND] =========================================================');
     throw error;
   }
 };
