@@ -1,48 +1,54 @@
-// utils/email.js - ENVIAR A TU EMAIL REGISTRADO
-const { Resend } = require('resend');
+// utils/email.js - BREVO (ex-Sendinblue)
+const SibApiV3Sdk = require('@getbrevo/brevo');
 
 const sendEmail = async (options) => {
-  console.log('📧 [RESEND] Iniciando envío de email...');
-  console.log('📧 [RESEND] Email original:', options.email);
-  console.log('📧 [RESEND] Subject:', options.subject);
+  console.log('📧 [BREVO] Iniciando envío de email...');
+  console.log('📧 [BREVO] Email destinatario:', options.email);
+  console.log('📧 [BREVO] Subject:', options.subject);
 
   try {
-    const resend = new Resend('re_Xr6qci3c_E2GtM6HJuNoq75aAGMWxqCfT');
-    
-    console.log('📧 [RESEND] Cliente Resend inicializado');
+    // Configurar cliente de Brevo
+    const defaultClient = SibApiV3Sdk.ApiClient.instance;
+    const apiKey = defaultClient.authentications['api-key'];
+    apiKey.apiKey = process.env.BREVO_API_KEY;
 
-    // ⚠️ MIENTRAS NO VERIFIQUES DOMINIO, ENVIAR A TU EMAIL
-    const emailDestino = 'giorgylezano@gmail.com'; // Tu email registrado en Resend
-    
-    console.log('📧 [RESEND] ⚠️ MODO DESARROLLO: Enviando a', emailDestino);
-    console.log('📧 [RESEND] (Email original era:', options.email, ')');
+    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
-    const { data, error } = await resend.emails.send({
-      from: 'WooHeart <onboarding@resend.dev>',
-      to: [emailDestino], // ← Siempre a tu email
-      subject: `[PARA: ${options.email}] ${options.subject}`, // ← Indica para quién era
-      html: `
-        <div style="background: #fffbcc; padding: 10px; border: 2px solid #ffa500; margin-bottom: 20px;">
-          <strong>⚠️ MODO DESARROLLO</strong><br>
-          Este email debería ir a: <strong>${options.email}</strong><br>
-          Pero se envía a tu email porque el dominio no está verificado.
-        </div>
-        ${options.html || `<p>${options.message}</p>`}
-      `,
-    });
+    console.log('📧 [BREVO] Cliente inicializado');
 
-    if (error) {
-      console.error('❌ [RESEND] Error:', error);
-      throw new Error(error.message);
-    }
+    // Preparar email
+    const sendSmtpEmail = {
+      sender: { 
+        email: 'noreply@wooheart.com', 
+        name: 'WooHeart' 
+      },
+      to: [{ 
+        email: options.email,
+        name: options.name || '' 
+      }],
+      subject: options.subject,
+      htmlContent: options.html || `<p>${options.message}</p>`
+    };
 
-    console.log('✅ [RESEND] ¡Email enviado a tu email de prueba!');
-    console.log('📧 [RESEND] ID:', data.id);
+    // Enviar email
+    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
-    return { success: true, messageId: data.id };
+    console.log('✅ [BREVO] Email enviado exitosamente!');
+    console.log('📧 [BREVO] Message ID:', data.messageId);
+
+    return { 
+      success: true, 
+      messageId: data.messageId 
+    };
 
   } catch (error) {
-    console.error('❌ [RESEND] Error:', error.message);
+    console.error('❌ [BREVO] Error:', error.message);
+    
+    // Si hay más detalles del error, mostrarlos
+    if (error.response) {
+      console.error('❌ [BREVO] Detalles:', error.response.text);
+    }
+    
     throw error;
   }
 };
