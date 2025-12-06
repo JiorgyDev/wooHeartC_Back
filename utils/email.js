@@ -1,57 +1,68 @@
-// utils/email.js
-const { Resend } = require('resend');
+// utils/email.js - BREVO (ex-Sendinblue)
+const brevo = require('@getbrevo/brevo');
 
 const sendEmail = async (options) => {
-  console.log('📧 [EMAIL] Iniciando envío de email...');
-  console.log('📧 [EMAIL] Destinatario:', options.email);
-  console.log('📧 [EMAIL] Asunto:', options.subject);
+  console.log('📧 [BREVO] Iniciando envío de email...');
+  console.log('📧 [BREVO] Destinatario:', options.email);
+  console.log('📧 [BREVO] Asunto:', options.subject);
 
   try {
-    // Verificar que tenemos la API key
-    if (!process.env.RESEND_API_KEY) {
-      throw new Error('RESEND_API_KEY no está configurada en las variables de entorno');
+    // Verificar que la API key existe
+    if (!process.env.BREVO_API_KEY) {
+      throw new Error('BREVO_API_KEY no está configurada en las variables de entorno');
     }
 
-    // Inicializar Resend
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    console.log('📧 [BREVO] API Key encontrada');
 
-    console.log('📧 [EMAIL] Cliente Resend inicializado');
+    // Configurar cliente de Brevo
+    const apiInstance = new brevo.TransactionalEmailsApi();
+    apiInstance.setApiKey(
+      brevo.TransactionalEmailsApiApiKeys.apiKey,
+      process.env.BREVO_API_KEY
+    );
 
-    // Preparar el email
-    const emailData = {
-      from: process.env.EMAIL_FROM || 'WooHeart <onboarding@resend.dev>',
-      to: options.email,
-      subject: options.subject,
-      html: options.html || `<p>${options.message}</p>`,
+    console.log('📧 [BREVO] Cliente inicializado');
+
+    // Usar el remitente desde variable de entorno
+    // IMPORTANTE: Este email DEBE estar verificado en Brevo
+    const senderEmail = process.env.EMAIL_FROM || 'jorgewooheart@gmail.com';
+    
+    console.log('📧 [BREVO] Remitente:', senderEmail);
+
+    // Preparar email
+    const sendSmtpEmail = new brevo.SendSmtpEmail();
+    sendSmtpEmail.sender = { 
+      email: senderEmail,
+      name: 'WooHeart' 
     };
+    sendSmtpEmail.to = [{ 
+      email: options.email,
+      name: options.name || '' 
+    }];
+    sendSmtpEmail.subject = options.subject;
+    sendSmtpEmail.htmlContent = options.html || `<p>${options.message}</p>`;
 
-    // Si hay texto plano, agregarlo
-    if (options.message && !options.html) {
-      emailData.text = options.message;
-    }
+    console.log('📧 [BREVO] Enviando email...');
 
-    console.log('📧 [EMAIL] Enviando email con Resend...');
-    console.log('📧 [EMAIL] From:', emailData.from);
-    console.log('📧 [EMAIL] To:', emailData.to);
+    // Enviar email
+    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
-    // Enviar el email
-    const data = await resend.emails.send(emailData);
+    console.log('✅ [BREVO] Email enviado exitosamente!');
+    console.log('📧 [BREVO] Message ID:', data.messageId);
 
-    console.log('✅ [EMAIL] Email enviado exitosamente');
-    console.log('📧 [EMAIL] ID del email:', data.id);
-
-    return {
-      success: true,
-      messageId: data.id
+    return { 
+      success: true, 
+      messageId: data.messageId 
     };
 
   } catch (error) {
-    console.error('❌ [EMAIL] Error enviando email:', error);
-    console.error('❌ [EMAIL] Detalles del error:', {
-      message: error.message,
-      name: error.name,
-      stack: error.stack
-    });
+    console.error('❌ [BREVO] Error:', error.message);
+    
+    // Mostrar detalles completos del error
+    if (error.response) {
+      console.error('❌ [BREVO] Status:', error.response.status);
+      console.error('❌ [BREVO] Body:', JSON.stringify(error.response.body, null, 2));
+    }
     
     throw error;
   }
