@@ -1,52 +1,57 @@
-// utils/email.js - BREVO (ex-Sendinblue)
-const brevo = require('@getbrevo/brevo');
+// utils/email.js
+const { Resend } = require('resend');
 
 const sendEmail = async (options) => {
-  console.log('📧 [BREVO] Iniciando envío de email...');
-  console.log('📧 [BREVO] Email destinatario:', options.email);
-  console.log('📧 [BREVO] Subject:', options.subject);
+  console.log('📧 [EMAIL] Iniciando envío de email...');
+  console.log('📧 [EMAIL] Destinatario:', options.email);
+  console.log('📧 [EMAIL] Asunto:', options.subject);
 
   try {
-    // Configurar cliente de Brevo - FORMA CORRECTA
-    const apiInstance = new brevo.TransactionalEmailsApi();
-    apiInstance.setApiKey(
-      brevo.TransactionalEmailsApiApiKeys.apiKey,
-      process.env.BREVO_API_KEY
-    );
+    // Verificar que tenemos la API key
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY no está configurada en las variables de entorno');
+    }
 
-    console.log('📧 [BREVO] Cliente inicializado');
+    // Inicializar Resend
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
-    // Preparar email
-    const sendSmtpEmail = new brevo.SendSmtpEmail();
-    sendSmtpEmail.sender = { 
-      email: 'noreply@wooheart.com', 
-      name: 'WooHeart' 
+    console.log('📧 [EMAIL] Cliente Resend inicializado');
+
+    // Preparar el email
+    const emailData = {
+      from: process.env.EMAIL_FROM || 'WooHeart <onboarding@resend.dev>',
+      to: options.email,
+      subject: options.subject,
+      html: options.html || `<p>${options.message}</p>`,
     };
-    sendSmtpEmail.to = [{ 
-      email: options.email,
-      name: options.name || '' 
-    }];
-    sendSmtpEmail.subject = options.subject;
-    sendSmtpEmail.htmlContent = options.html || `<p>${options.message}</p>`;
 
-    // Enviar email
-    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    // Si hay texto plano, agregarlo
+    if (options.message && !options.html) {
+      emailData.text = options.message;
+    }
 
-    console.log('✅ [BREVO] Email enviado exitosamente!');
-    console.log('📧 [BREVO] Message ID:', data.messageId);
+    console.log('📧 [EMAIL] Enviando email con Resend...');
+    console.log('📧 [EMAIL] From:', emailData.from);
+    console.log('📧 [EMAIL] To:', emailData.to);
 
-    return { 
-      success: true, 
-      messageId: data.messageId 
+    // Enviar el email
+    const data = await resend.emails.send(emailData);
+
+    console.log('✅ [EMAIL] Email enviado exitosamente');
+    console.log('📧 [EMAIL] ID del email:', data.id);
+
+    return {
+      success: true,
+      messageId: data.id
     };
 
   } catch (error) {
-    console.error('❌ [BREVO] Error:', error.message);
-    
-    // Si hay más detalles del error, mostrarlos
-    if (error.response && error.response.body) {
-      console.error('❌ [BREVO] Detalles:', error.response.body);
-    }
+    console.error('❌ [EMAIL] Error enviando email:', error);
+    console.error('❌ [EMAIL] Detalles del error:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack
+    });
     
     throw error;
   }
