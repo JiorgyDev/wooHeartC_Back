@@ -36,8 +36,7 @@ const sendEmail = async (options) => {
       name: 'WooHeart' 
     };
     sendSmtpEmail.to = [{ 
-      email: options.email,
-      name: options.name || '' 
+      email: options.email
     }];
     sendSmtpEmail.subject = options.subject;
     sendSmtpEmail.htmlContent = options.html || `<p>${options.message}</p>`;
