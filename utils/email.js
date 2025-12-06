@@ -1,66 +1,54 @@
-// utils/email.js - BREVO (ex-Sendinblue)
-const brevo = require('@getbrevo/brevo');
+// utils/email.js - SendGrid
+const sgMail = require('@sendgrid/mail');
 
 const sendEmail = async (options) => {
-  console.log('📧 [BREVO] Iniciando envío de email...');
-  console.log('📧 [BREVO] Destinatario:', options.email);
-  console.log('📧 [BREVO] Asunto:', options.subject);
+  console.log('📧 [SENDGRID] Iniciando envío de email...');
+  console.log('📧 [SENDGRID] Destinatario:', options.email);
+  console.log('📧 [SENDGRID] Asunto:', options.subject);
 
   try {
     // Verificar que la API key existe
-    if (!process.env.BREVO_API_KEY) {
-      throw new Error('BREVO_API_KEY no está configurada en las variables de entorno');
+    if (!process.env.SENDGRID_API_KEY) {
+      throw new Error('SENDGRID_API_KEY no está configurada en las variables de entorno');
     }
 
-    console.log('📧 [BREVO] API Key encontrada');
+    console.log('📧 [SENDGRID] API Key encontrada');
 
-    // Configurar cliente de Brevo
-    const apiInstance = new brevo.TransactionalEmailsApi();
-    apiInstance.setApiKey(
-      brevo.TransactionalEmailsApiApiKeys.apiKey,
-      process.env.BREVO_API_KEY
-    );
+    // Configurar SendGrid
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-    console.log('📧 [BREVO] Cliente inicializado');
-
-    // Usar el remitente desde variable de entorno
-    // IMPORTANTE: Este email DEBE estar verificado en Brevo
-    const senderEmail = process.env.EMAIL_FROM || 'jorgewooheart@gmail.com';
-    
-    console.log('📧 [BREVO] Remitente:', senderEmail);
+    console.log('📧 [SENDGRID] Cliente configurado');
 
     // Preparar email
-    const sendSmtpEmail = new brevo.SendSmtpEmail();
-    sendSmtpEmail.sender = { 
-      email: senderEmail,
-      name: 'WooHeart' 
+    const msg = {
+      to: options.email,
+      from: process.env.EMAIL_FROM || 'jorgewooheart@gmail.com',
+      subject: options.subject,
+      text: options.message,
+      html: options.html || `<p>${options.message}</p>`,
     };
-    sendSmtpEmail.to = [{ 
-      email: options.email
-    }];
-    sendSmtpEmail.subject = options.subject;
-    sendSmtpEmail.htmlContent = options.html || `<p>${options.message}</p>`;
 
-    console.log('📧 [BREVO] Enviando email...');
+    console.log('📧 [SENDGRID] Remitente:', msg.from);
+    console.log('📧 [SENDGRID] Enviando email...');
 
     // Enviar email
-    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    const response = await sgMail.send(msg);
 
-    console.log('✅ [BREVO] Email enviado exitosamente!');
-    console.log('📧 [BREVO] Message ID:', data.messageId);
+    console.log('✅ [SENDGRID] Email enviado exitosamente!');
+    console.log('📧 [SENDGRID] Status:', response[0].statusCode);
+    console.log('📧 [SENDGRID] Message ID:', response[0].headers['x-message-id']);
 
-    return { 
-      success: true, 
-      messageId: data.messageId 
+    return {
+      success: true,
+      messageId: response[0].headers['x-message-id']
     };
 
   } catch (error) {
-    console.error('❌ [BREVO] Error:', error.message);
+    console.error('❌ [SENDGRID] Error:', error.message);
     
-    // Mostrar detalles completos del error
     if (error.response) {
-      console.error('❌ [BREVO] Status:', error.response.status);
-      console.error('❌ [BREVO] Body:', JSON.stringify(error.response.body, null, 2));
+      console.error('❌ [SENDGRID] Status:', error.response.statusCode);
+      console.error('❌ [SENDGRID] Body:', error.response.body);
     }
     
     throw error;
