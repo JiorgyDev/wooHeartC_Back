@@ -251,46 +251,70 @@ exports.authenticatedUsers = exports.restrictTo(
 );
 
 exports.forgotPassword = catchAsync(async (req, res, next) => {
-  // MIDDLEWARES ESPECÍFICOS POR ROL
+  const { email } = req.body;
 
-  // 1) Obtener usuario basado en email
-  const user = await User.findOne({ email: req.body.email });
+  if (!email) {
+    return next(new AppError('Por favor proporciona un email', 400));
+  }
+
+  // 1) Buscar usuario
+  const user = await User.findOne({ email });
+  
   if (!user) {
     return next(new AppError('No existe usuario con ese email', 404));
   }
 
-  // 2) Generar token random
-  const resetToken = crypto.randomBytes(32).toString('hex');
+  // 2) Generar código de 6 dígitos
+  const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
 
+  // 3) Guardar código hasheado y expiración (10 minutos)
   user.resetPasswordToken = crypto
     .createHash('sha256')
-    .update(resetToken)
+    .update(resetCode)
     .digest('hex');
-
+  
   user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutos
 
   await user.save({ validateBeforeSave: false });
 
-  // 3) Enviar por email (implementar según servicio de email)
+  console.log('✅ Código de recuperación generado para:', user.email);
+
+  // 4) Enviar email
   try {
-    // TODO: Implementar envío de email
-    // await sendEmail({
-    //   email: user.email,
-    //   subject: 'Token de recuperación de contraseña (válido por 10 min)',
-    //   message: resetToken
-    // });
+    await sendEmail({
+      email: user.email,
+      subject: 'Recuperación de contraseña - WooHeart',
+      message: `Hola ${user.name},\n\nRecibimos una solicitud para restablecer tu contraseña.\n\nTu código de verificación es: ${resetCode}\n\nEste código expira en 10 minutos.\n\nSi no solicitaste este código, ignora este email.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #FE8043;">Recuperación de contraseña - WooHeart 🔒</h2>
+          <p>Hola <strong>${user.name}</strong>,</p>
+          <p>Recibimos una solicitud para restablecer tu contraseña.</p>
+          <p>Tu código de verificación es:</p>
+          <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #2A1617; border-radius: 8px; margin: 20px 0;">
+            ${resetCode}
+          </div>
+          <p>Este código expirará en <strong>10 minutos</strong>.</p>
+          <p style="color: #B42C1C; font-weight: bold;">⚠️ Si no solicitaste este código, ignora este email.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+          <p style="color: #999; font-size: 12px;">WooHeart - Conectando corazones con mascotas</p>
+        </div>
+      `
+    });
+
+    console.log('✅ Email de recuperación enviado a:', user.email);
 
     res.status(200).json({
       status: 'success',
-      message: 'Token enviado al email',
-      // En desarrollo, devolver el token
-      ...(process.env.NODE_ENV === 'development' && { resetToken })
+      message: 'Código de recuperación enviado al email'
     });
+
   } catch (err) {
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save({ validateBeforeSave: false });
 
+    console.error('❌ Error enviando email de recuperación:', err);
     return next(
       new AppError('Error enviando el email. Intenta de nuevo más tarde.', 500)
     );
@@ -298,31 +322,49 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 });
 
 exports.resetPassword = catchAsync(async (req, res, next) => {
-  // 1) Obtener usuario basado en el token
-  const hashedToken = crypto
+  const { email, code, newPassword } = req.body;
+
+  // 1) Validar que se enviaron todos los campos
+  if (!email || !code || !newPassword) {
+    return next(new AppError('Por favor proporciona email, código y nueva contraseña', 400));
+  }
+
+  // 2) Validar longitud de contraseña
+  if (newPassword.length < 6) {
+    return next(new AppError('La contraseña debe tener al menos 6 caracteres', 400));
+  }
+
+  // 3) Hashear el código proporcionado
+  const hashedCode = crypto
     .createHash('sha256')
-    .update(req.params.token)
+    .update(code)
     .digest('hex');
 
+  // 4) Buscar usuario con código válido y no expirado
   const user = await User.findOne({
-    resetPasswordToken: hashedToken,
+    email,
+    resetPasswordToken: hashedCode,
     resetPasswordExpires: { $gt: Date.now() }
   });
 
-  // 2) Si el token no ha expirado y hay usuario, establecer nueva contraseña
   if (!user) {
-    return next(new AppError('Token inválido o expirado', 400));
+    return next(new AppError('Código inválido o expirado', 400));
   }
 
-  user.password = req.body.password;
+  // 5) Actualizar contraseña y limpiar campos de reset
+  user.password = newPassword;
   user.resetPasswordToken = undefined;
   user.resetPasswordExpires = undefined;
-  await user.save();
+  
+  await user.save(); // El middleware pre-save hasheará la contraseña
 
-  // 3) Actualizar changedPasswordAt property (implementar en el modelo si es necesario)
+  console.log('✅ Contraseña actualizada para:', user.email);
 
-  // 4) Log in del usuario, enviar JWT
-  createSendToken(user, 200, res);
+  // 6) Enviar respuesta (SIN TOKEN - el usuario debe hacer login)
+  res.status(200).json({
+    status: 'success',
+    message: 'Contraseña actualizada exitosamente. Por favor inicia sesión con tu nueva contraseña.'
+  });
 });
 
 exports.updatePassword = catchAsync(async (req, res, next) => {
