@@ -88,13 +88,17 @@ app.get("/api/v1/health", (req, res) => {
 // Importar rutas DESPUÉS de configurar middlewares
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
-const petRoutes = require("./routes/pets"); // ← NUEVA LÍNEA
-const commentRoutes = require("./routes/comments"); 
+const petRoutes = require("./routes/pets");
+const commentRoutes = require("./routes/comments");
+const conversationRoutes = require("./routes/conversations");
+const messageRoutes = require("./routes/messages");
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
-app.use("/api/v1/pets", petRoutes); // ← NUEVA LÍNEA
+app.use("/api/v1/pets", petRoutes);
 app.use("/api/v1/comments", commentRoutes);
+app.use("/api/v1/conversations", conversationRoutes);
+app.use("/api/v1/messages", messageRoutes);
 
 // 3) MANEJAR RUTAS NO ENCONTRADAS
 app.all("*", (req, res, next) => {

@@ -296,3 +296,26 @@ exports.deleteUser = catchAsync(async (req, res, next) => {
     data: null
   });
 });
+exports.searchUsers = catchAsync(async (req, res, next) => {
+  const { q } = req.query;
+
+  if (!q || q.trim() === '') {
+    return next(new AppError('Debes proporcionar un término de búsqueda', 400));
+  }
+
+  const users = await User.find({
+    _id: { $ne: req.user.id },
+    name: { $regex: q, $options: 'i' },
+    isActive: { $ne: false }
+  })
+    .select('name email avatar role')
+    .limit(20);
+
+  res.status(200).json({
+    status: 'success',
+    results: users.length,
+    data: {
+      users
+    }
+  });
+});

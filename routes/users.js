@@ -1,32 +1,33 @@
-// routes/users.js
 const express = require('express');
+const router = express.Router();
 const userController = require('../controllers/userController');
 const authController = require('../controllers/authController');
 const { uploadPetImage } = require('../middleware/upload');
+const { ROLES } = require('../models/user');
 
-const router = express.Router();
+// Rutas públicas
+router.get('/:id/profile', userController.getUserProfile);
+router.get('/:id/stats', userController.getUserStats);
 
-// Aplicar protección a todas las rutas después de este punto
+// Proteger todas las rutas después de este middleware
 router.use(authController.protect);
 
-// Rutas del usuario actual
-router.get('/me', userController.getMe);
-router.patch('/update-me', userController.updateMe);
-router.patch('/update-avatar', uploadPetImage.single('avatar'), userController.updateAvatar);
-router.delete('/delete-me', userController.deleteMe);
-router.get('/my-stats', userController.getUserStats);
+// RUTA DE BÚSQUEDA
+router.get('/search', userController.searchUsers);
 
-// Rutas de favoritos
+// Rutas de usuario autenticado
+router.get('/me', userController.getMe);
+router.patch('/me', userController.updateMe);
+router.patch('/me/avatar', uploadPetImage.single('avatar'), userController.updateAvatar);
+router.delete('/me', userController.deleteMe);
+
+// Favoritos
+router.get('/favorites', userController.getFavorites);
 router.post('/favorites/:petId', userController.addToFavorites);
 router.delete('/favorites/:petId', userController.removeFromFavorites);
-router.get('/favorites', userController.getFavorites);
 
-// Rutas públicas de perfiles - MOVER ANTES del middleware de protección
-router.get('/profile/:id', userController.getUserProfile);
-router.get('/stats/:id', userController.getUserStats);
-
-// Rutas de admin
-router.use(authController.restrictTo('admin'));
+// Rutas de administrador
+router.use(authController.restrictTo(ROLES.ADMIN));
 
 router
   .route('/')
