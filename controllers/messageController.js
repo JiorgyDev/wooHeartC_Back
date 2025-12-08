@@ -39,26 +39,20 @@ exports.sendMessage = async (req, res, next) => {
       });
     }
 
-    // Crear el mensaje
+    // ✅ CAMBIO: Usar conversationId y senderId
     const message = await Message.create({
-      conversation: conversationId,
-      sender: req.user.id,
+      conversationId: conversationId,
+      senderId: req.user.id,
       content: content.trim()
     });
 
-    // Actualizar la conversación
-    conversation.lastMessage = message._id;
-    conversation.updatedAt = Date.now();
-    await conversation.save();
-
     // Poblar información del sender antes de enviar
-    await message.populate('sender', 'name avatar');
+    await message.populate('senderId', 'name avatar');
 
-    // Emitir evento de Socket.io (el servidor lo manejará)
+    // Emitir evento de Socket.io
     if (req.app.get('io')) {
       const io = req.app.get('io');
       
-      // Enviar a todos los participantes excepto al sender
       conversation.participants.forEach(participantId => {
         if (participantId.toString() !== req.user.id) {
           io.to(participantId.toString()).emit('new_message', {
@@ -77,7 +71,8 @@ exports.sendMessage = async (req, res, next) => {
     console.error('Error sending message:', error);
     res.status(500).json({
       success: false,
-      message: 'Error al enviar el mensaje'
+      message: 'Error al enviar el mensaje',
+      error: error.message
     });
   }
 };
@@ -114,24 +109,23 @@ exports.getMessages = async (req, res, next) => {
       });
     }
 
-    // Obtener mensajes (más recientes primero)
-    const messages = await Message.find({ conversation: conversationId })
+    // ✅ CAMBIO: Buscar por conversationId
+    const messages = await Message.find({ conversationId: conversationId })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('sender', 'name avatar');
+      .populate('senderId', 'name avatar');
 
-    // Contar total de mensajes
-    const total = await Message.countDocuments({ conversation: conversationId });
+    const total = await Message.countDocuments({ conversationId: conversationId });
 
-    // Marcar mensajes como leídos
+    // ✅ CAMBIO: Actualizar con senderId
     await Message.updateMany(
       {
-        conversation: conversationId,
-        sender: { $ne: req.user.id },
-        read: false
+        conversationId: conversationId,
+        senderId: { $ne: req.user.id },
+        isRead: false
       },
-      { read: true, readAt: Date.now() }
+      { isRead: true, readAt: Date.now() }
     );
 
     // Emitir evento de mensajes leídos
@@ -153,7 +147,7 @@ exports.getMessages = async (req, res, next) => {
       total,
       page,
       pages: Math.ceil(total / limit),
-      data: messages.reverse() // Invertir para que los más antiguos estén primero
+      data: messages.reverse()
     });
   } catch (error) {
     console.error('Error getting messages:', error);
@@ -178,16 +172,15 @@ exports.markAsRead = async (req, res, next) => {
       });
     }
 
-    // Verificar que el usuario no es el sender
-    if (message.sender.toString() === req.user.id) {
+    // ✅ CAMBIO: Verificar con senderId
+    if (message.senderId.toString() === req.user.id) {
       return res.status(400).json({
         success: false,
         message: 'No puedes marcar como leído tu propio mensaje'
       });
     }
 
-    // Verificar que el usuario es participante de la conversación
-    const conversation = await Conversation.findById(message.conversation);
+    const conversation = await Conversation.findById(message.conversationId);
     const isParticipant = conversation.participants.some(
       p => p.toString() === req.user.id
     );
@@ -199,14 +192,13 @@ exports.markAsRead = async (req, res, next) => {
       });
     }
 
-    message.read = true;
+    message.isRead = true;
     message.readAt = Date.now();
     await message.save();
 
-    // Emitir evento
     if (req.app.get('io')) {
       const io = req.app.get('io');
-      io.to(message.sender.toString()).emit('message_read', {
+      io.to(message.senderId.toString()).emit('message_read', {
         messageId: message._id,
         conversationId: conversation._id,
         readBy: req.user.id,
@@ -241,8 +233,8 @@ exports.deleteMessage = async (req, res, next) => {
       });
     }
 
-    // Solo el sender puede eliminar el mensaje
-    if (message.sender.toString() !== req.user.id) {
+    // ✅ CAMBIO: Verificar con senderId
+    if (message.senderId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Solo puedes eliminar tus propios mensajes'
@@ -251,10 +243,9 @@ exports.deleteMessage = async (req, res, next) => {
 
     await message.deleteOne();
 
-    // Emitir evento
     if (req.app.get('io')) {
       const io = req.app.get('io');
-      const conversation = await Conversation.findById(message.conversation);
+      const conversation = await Conversation.findById(message.conversationId);
       
       conversation.participants.forEach(participantId => {
         if (participantId.toString() !== req.user.id) {
