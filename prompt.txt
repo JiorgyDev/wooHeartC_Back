@@ -1,0 +1,20 @@
+Hola Claude, acabo de terminar de implementar la pasarela de pago con Stripe en mi backend Node.js + Express. 
+
+CONTEXTO:
+- Tengo 3 tipos de pago funcionando: apoyo único (monto variable), suscripción mensual (4 planes: $5, $10, $60, $150) y adopción mensual (3 planes: $5, $10, $20)
+- Backend completo con: models/Payment.js, models/Subscription.js, controllers/paymentController.js, routes/payments.js
+- Las claves de Stripe ya están en el .env
+- El backend está desplegado en: https://wooheartc-back.onrender.com
+
+AHORA NECESITO:
+1. Integrar los pagos en Flutter (mi app móvil)
+2. Conectar los botones que ya tengo en homepage.dart con el backend
+3. Implementar flutter_stripe para manejar los pagos desde la app
+4. Los archivos principales son: AdoptarScreen (apoyo), SuscScreen (suscripción), CrearScreen (adopción)
+
+PREGUNTAS:
+- ¿Qué paquetes de Flutter necesito instalar?
+- ¿Cómo configuro flutter_stripe?
+- ¿Puedes darme el código para conectar cada botón con el backend?
+
+Mi estructura actual en Flutter usa estos widgets para los botones de pago, pero no hacen nada aún. ¿Me ayudas a implementar la lógica completa?

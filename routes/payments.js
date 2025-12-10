@@ -1,45 +1,34 @@
+// routes/payments.js
 const express = require('express');
-const router = express.Router();
 const paymentController = require('../controllers/paymentController');
-const { protect } = require('../middleware/auth'); // Ajusta la ruta según tu proyecto
+const authController = require('../controllers/authController'); // ← CAMBIO AQUÍ
+
+const router = express.Router();
 
 // ============================================
-// RUTAS PÚBLICAS (sin autenticación)
+// WEBHOOK DE STRIPE (NO REQUIERE AUTENTICACIÓN)
 // ============================================
-
-// Webhook de Stripe (NO usa protect, Stripe lo llama directamente)
-router.post('/webhook', paymentController.webhook);
-
-// ============================================
-// RUTAS PROTEGIDAS (requieren autenticación)
-// ============================================
-
-// Crear pago único (Apoyar)
+// IMPORTANTE: Esta ruta ya está manejada en app.js con express.raw()
 router.post(
-  '/create-payment-intent',
-  protect, // Middleware de autenticación (opcional)
-  paymentController.createPaymentIntent
+  '/webhook',
+  paymentController.handleStripeWebhook
 );
 
-// Crear suscripción (Suscribir/Adoptar)
-router.post(
-  '/create-subscription',
-  protect,
-  paymentController.createSubscription
-);
+// ============================================
+// RUTAS PROTEGIDAS (Requieren autenticación)
+// ============================================
+router.use(authController.protect); // ← CAMBIO AQUÍ
+
+// Crear pagos
+router.post('/apoyo', paymentController.createApoyoPayment);
+router.post('/suscripcion', paymentController.createSuscripcionPayment);
+router.post('/adopcion', paymentController.createAdopcionPayment);
+
+// Obtener historial
+router.get('/my-payments', paymentController.getMyPayments);
+router.get('/my-subscriptions', paymentController.getMySubscriptions);
 
 // Cancelar suscripción
-router.post(
-  '/cancel-subscription',
-  protect,
-  paymentController.cancelSubscription
-);
-
-// Obtener historial de pagos
-router.get(
-  '/history',
-  protect,
-  paymentController.getPaymentHistory
-);
+router.patch('/subscriptions/:subscriptionId/cancel', paymentController.cancelSubscription);
 
 module.exports = router;
