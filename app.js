@@ -45,6 +45,10 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
+// ⚠️ NUEVO: Webhook de Stripe DEBE estar ANTES de express.json()
+// Stripe necesita el body RAW (sin parsear a JSON)
+app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
+
 // Body parser middleware
 app.use(express.json({ limit: "10mb" })); // Aumentado para imágenes
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -92,6 +96,7 @@ const petRoutes = require("./routes/pets");
 const commentRoutes = require("./routes/comments");
 const conversationRoutes = require("./routes/conversations");
 const messageRoutes = require("./routes/messages");
+const paymentRoutes = require("./routes/payments"); // ← NUEVA LÍNEA
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
@@ -99,6 +104,7 @@ app.use("/api/v1/pets", petRoutes);
 app.use("/api/v1/comments", commentRoutes);
 app.use("/api/v1/conversations", conversationRoutes);
 app.use("/api/v1/messages", messageRoutes);
+app.use("/api/v1/payments", paymentRoutes); // ← NUEVA LÍNEA
 
 // 3) MANEJAR RUTAS NO ENCONTRADAS
 app.all("*", (req, res, next) => {

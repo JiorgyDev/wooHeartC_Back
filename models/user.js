@@ -117,7 +117,12 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   },
   resetPasswordToken: String,
-  resetPasswordExpires: Date
+  resetPasswordExpires: Date,
+  stripeCustomerId: {
+  type: String,
+  unique: true,
+  sparse: true
+},
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
