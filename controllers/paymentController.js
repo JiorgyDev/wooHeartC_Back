@@ -1,6 +1,15 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+
+// ============================================
+// FUNCIÓN HELPER PARA OBTENER STRIPE
+// ============================================
+const getStripe = () => {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY no está configurada');
+  }
+  return require('stripe')(process.env.STRIPE_SECRET_KEY);
+};
 
 // ============================================
 // MAPEO DE PLANES A PRICE IDS
@@ -25,6 +34,7 @@ const PRICE_IDS = {
 // APOYO - PAGO ÚNICO
 // ============================================
 exports.createApoyoPayment = catchAsync(async (req, res, next) => {
+  const stripe = getStripe();
   const { amount } = req.body;
 
   // Validar monto
@@ -60,6 +70,7 @@ exports.createApoyoPayment = catchAsync(async (req, res, next) => {
 // SUSCRIPCIÓN - PAGO MENSUAL
 // ============================================
 exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
+  const stripe = getStripe();
   const { plan } = req.body;
 
   // Validar plan
@@ -120,6 +131,7 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
 // ADOPCIÓN - PAGO MENSUAL
 // ============================================
 exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
+  const stripe = getStripe();
   const { plan, petId } = req.body;
 
   // Validar plan
@@ -179,6 +191,7 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
 // WEBHOOK DE STRIPE
 // ============================================
 exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
+  const stripe = getStripe();
   const sig = req.headers['stripe-signature'];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -219,6 +232,7 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
 // OBTENER MIS PAGOS
 // ============================================
 exports.getMyPayments = catchAsync(async (req, res, next) => {
+  const stripe = getStripe();
   const charges = await stripe.charges.list({
     limit: 50,
   });
@@ -240,6 +254,8 @@ exports.getMyPayments = catchAsync(async (req, res, next) => {
 // OBTENER MIS SUSCRIPCIONES
 // ============================================
 exports.getMySubscriptions = catchAsync(async (req, res, next) => {
+  const stripe = getStripe();
+  
   // Buscar customer del usuario
   const customers = await stripe.customers.list({
     email: req.user.email,
@@ -274,6 +290,7 @@ exports.getMySubscriptions = catchAsync(async (req, res, next) => {
 // CANCELAR SUSCRIPCIÓN
 // ============================================
 exports.cancelSubscription = catchAsync(async (req, res, next) => {
+  const stripe = getStripe();
   const { subscriptionId } = req.params;
 
   const subscription = await stripe.subscriptions.cancel(subscriptionId);
