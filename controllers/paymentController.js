@@ -1,323 +1,238 @@
-// controllers/paymentController.js
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const Payment = require('../models/payment');
-const Subscription = require('../models/Subscription');
-const User = require('../models/user');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 // ============================================
-// CONFIGURACIÓN DE PRECIOS (en centavos)
+// MAPEO DE PLANES A PRICE IDS
 // ============================================
-const PRICES = {
-  // Apoyo: Monto variable (mínimo $1)
-  apoyo_min: 100, // $1.00 USD mínimo
-  
-  // Suscripciones mensuales (SuscScreen)
-  suscripcion_5: 500,    // $5 USD - Granito de arena
-  suscripcion_10: 1000,  // $10 USD - Luz de esperanza
-  suscripcion_60: 6000,  // $60 USD - Angel de la guarda
-  suscripcion_150: 15000, // $150 USD - Corazon dorado
-  
-  // Adopciones mensuales (CrearScreen)
-  adopcion_5: 500,   // $5 USD - Plan Guardián
-  adopcion_10: 1000, // $10 USD - Plan Protector
-  adopcion_20: 2000  // $20 USD - Plan Ángel
+const PRICE_IDS = {
+  // ADOPCIÓN (Mensual)
+  adopcion: {
+    '5': 'price_1SedOV5AM2wN9Wkr1cI7t1oq',
+    '10': 'price_1SedPU5AM2wN9WkrdlaM1nxd',
+    '20': 'price_1SedPU5AM2wN9WkrhLRT3r7y',
+  },
+  // SUSCRIPCIÓN (Mensual)
+  suscripcion: {
+    '5': 'price_1SedQC5AM2wN9Wkroe5eXGXo',
+    '10': 'price_1SedR75AM2wN9WkrAs7zQ5Zg',
+    '60': 'price_1SedR75AM2wN9Wkrjzauq7Zi',
+    '150': 'price_1SedR75AM2wN9WkrbpGEyZyc',
+  },
 };
 
 // ============================================
-// 1. APOYO ÚNICO (Donación variable)
+// APOYO - PAGO ÚNICO
 // ============================================
 exports.createApoyoPayment = catchAsync(async (req, res, next) => {
-  const { amount } = req.body; // Monto en USD que envía el usuario
-  const userId = req.user.id;
+  const { amount } = req.body;
 
-  // Validar monto mínimo
+  // Validar monto
   if (!amount || amount < 1) {
-    return next(new AppError('El monto mínimo es $1.00 USD', 400));
-  }
-
-  // Convertir a centavos
-  const finalAmount = Math.round(amount * 100);
-
-  // Buscar o crear customer en Stripe
-  let customer;
-  const user = await User.findById(userId);
-  
-  if (user.stripeCustomerId) {
-    customer = await stripe.customers.retrieve(user.stripeCustomerId);
-  } else {
-    customer = await stripe.customers.create({
-      email: user.email,
-      name: user.name,
-      metadata: {
-        userId: userId.toString()
-      }
-    });
-    
-    user.stripeCustomerId = customer.id;
-    await user.save({ validateBeforeSave: false });
+    return next(new AppError('El monto mínimo es $1 USD', 400));
   }
 
   // Crear Payment Intent
   const paymentIntent = await stripe.paymentIntents.create({
-    amount: finalAmount,
+    amount: Math.round(amount * 100), // Convertir a centavos
     currency: 'usd',
-    customer: customer.id,
-    description: 'Apoyo único a WooHeart',
+    description: `Apoyo a WooHeart - $${amount} USD`,
     metadata: {
-      userId: userId.toString(),
-      type: 'apoyo'
+      userId: req.user._id.toString(),
+      type: 'apoyo',
+      amount: amount.toString(),
     },
     automatic_payment_methods: {
-      enabled: true
-    }
-  });
-
-  // Crear registro en BD
-  const payment = await Payment.create({
-    user: userId,
-    type: 'apoyo',
-    amount: finalAmount,
-    currency: 'usd',
-    status: 'pending',
-    stripePaymentIntentId: paymentIntent.id,
-    stripeCustomerId: customer.id,
-    description: `Apoyo único de $${amount} USD`
+      enabled: true,
+    },
   });
 
   res.status(200).json({
     status: 'success',
     data: {
       clientSecret: paymentIntent.client_secret,
-      paymentId: payment._id,
-      amount: finalAmount
-    }
+      paymentIntentId: paymentIntent.id,
+    },
   });
 });
 
 // ============================================
-// 2. SUSCRIPCIÓN MENSUAL (Planes de SuscScreen)
+// SUSCRIPCIÓN - PAGO MENSUAL
 // ============================================
 exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
-  const { plan } = req.body; // plan: '5', '10', '60', '150'
-  const userId = req.user.id;
+  const { plan } = req.body;
 
   // Validar plan
-  const validPlans = ['5', '10', '60', '150'];
-  if (!plan || !validPlans.includes(plan)) {
-    return next(new AppError('Plan inválido. Opciones: 5, 10, 60, 150', 400));
+  if (!plan || !PRICE_IDS.suscripcion[plan]) {
+    return next(
+      new AppError('Plan inválido. Opciones: 5, 10, 60, 150', 400)
+    );
   }
 
-  const planKey = `suscripcion_${plan}`;
-  const amount = PRICES[planKey];
+  const priceId = PRICE_IDS.suscripcion[plan];
 
-  // Verificar si ya tiene suscripción activa
-  const existingSubscription = await Subscription.findOne({
-    user: userId,
-    type: 'suscripcion',
-    status: 'active'
+  // Buscar o crear cliente en Stripe
+  let customer;
+  const existingCustomers = await stripe.customers.list({
+    email: req.user.email,
+    limit: 1,
   });
 
-  if (existingSubscription) {
-    return next(new AppError('Ya tienes una suscripción activa', 400));
-  }
-
-  // Buscar o crear customer
-  let customer;
-  const user = await User.findById(userId);
-  
-  if (user.stripeCustomerId) {
-    customer = await stripe.customers.retrieve(user.stripeCustomerId);
+  if (existingCustomers.data.length > 0) {
+    customer = existingCustomers.data[0];
   } else {
     customer = await stripe.customers.create({
-      email: user.email,
-      name: user.name,
+      email: req.user.email,
+      name: req.user.name,
       metadata: {
-        userId: userId.toString()
-      }
+        userId: req.user._id.toString(),
+      },
     });
-    
-    user.stripeCustomerId = customer.id;
-    await user.save({ validateBeforeSave: false });
   }
-
-  // Crear precio en Stripe
-  const price = await stripe.prices.create({
-    unit_amount: amount,
-    currency: 'usd',
-    recurring: {
-      interval: 'month'
-    },
-    product_data: {
-      name: `Suscripción WooHeart - Plan $${plan}`,
-      description: `Suscripción mensual de $${plan} USD`
-    }
-  });
 
   // Crear suscripción
   const subscription = await stripe.subscriptions.create({
     customer: customer.id,
-    items: [{ price: price.id }],
+    items: [{ price: priceId }],
     payment_behavior: 'default_incomplete',
-    payment_settings: { save_default_payment_method: 'on_subscription' },
+    payment_settings: {
+      save_default_payment_method: 'on_subscription',
+    },
     expand: ['latest_invoice.payment_intent'],
     metadata: {
-      userId: userId.toString(),
+      userId: req.user._id.toString(),
       type: 'suscripcion',
-      plan: plan
-    }
-  });
-
-  // Guardar en BD
-  const dbSubscription = await Subscription.create({
-    user: userId,
-    type: 'suscripcion',
-    status: 'incomplete',
-    stripeSubscriptionId: subscription.id,
-    stripeCustomerId: customer.id,
-    stripePriceId: price.id,
-    amount: amount,
-    currency: 'usd',
-    currentPeriodStart: new Date(subscription.current_period_start * 1000),
-    currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-    metadata: {
-      plan: plan
-    }
+      plan,
+    },
   });
 
   res.status(200).json({
     status: 'success',
     data: {
+      subscriptionId: subscription.id,
       clientSecret: subscription.latest_invoice.payment_intent.client_secret,
-      subscriptionId: dbSubscription._id,
-      amount: amount,
-      plan: plan
-    }
+      customerId: customer.id,
+    },
   });
 });
 
 // ============================================
-// 3. ADOPCIÓN MENSUAL (Planes de CrearScreen)
+// ADOPCIÓN - PAGO MENSUAL
 // ============================================
 exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
-  const { plan, petId } = req.body; // plan: '5', '10', '20'
-  const userId = req.user.id;
+  const { plan, petId } = req.body;
 
   // Validar plan
-  const validPlans = ['5', '10', '20'];
-  if (!plan || !validPlans.includes(plan)) {
+  if (!plan || !PRICE_IDS.adopcion[plan]) {
     return next(new AppError('Plan inválido. Opciones: 5, 10, 20', 400));
   }
 
-  const planKey = `adopcion_${plan}`;
-  const amount = PRICES[planKey];
+  const priceId = PRICE_IDS.adopcion[plan];
 
-  // Si petId es proporcionado, verificar que no tenga adopción activa
-  if (petId) {
-    const existingAdoption = await Subscription.findOne({
-      user: userId,
-      pet: petId,
-      type: 'adopcion',
-      status: 'active'
-    });
-
-    if (existingAdoption) {
-      return next(new AppError('Ya tienes una adopción activa para esta mascota', 400));
-    }
-  }
-
-  // Buscar o crear customer
+  // Buscar o crear cliente en Stripe
   let customer;
-  const user = await User.findById(userId);
-  
-  if (user.stripeCustomerId) {
-    customer = await stripe.customers.retrieve(user.stripeCustomerId);
+  const existingCustomers = await stripe.customers.list({
+    email: req.user.email,
+    limit: 1,
+  });
+
+  if (existingCustomers.data.length > 0) {
+    customer = existingCustomers.data[0];
   } else {
     customer = await stripe.customers.create({
-      email: user.email,
-      name: user.name,
+      email: req.user.email,
+      name: req.user.name,
       metadata: {
-        userId: userId.toString()
-      }
+        userId: req.user._id.toString(),
+      },
     });
-    
-    user.stripeCustomerId = customer.id;
-    await user.save({ validateBeforeSave: false });
   }
-
-  // Crear precio
-  const price = await stripe.prices.create({
-    unit_amount: amount,
-    currency: 'usd',
-    recurring: {
-      interval: 'month'
-    },
-    product_data: {
-      name: `Adopción Virtual WooHeart - Plan $${plan}`,
-      description: `Adopción mensual de $${plan} USD`
-    }
-  });
 
   // Crear suscripción
   const subscription = await stripe.subscriptions.create({
     customer: customer.id,
-    items: [{ price: price.id }],
+    items: [{ price: priceId }],
     payment_behavior: 'default_incomplete',
-    payment_settings: { save_default_payment_method: 'on_subscription' },
+    payment_settings: {
+      save_default_payment_method: 'on_subscription',
+    },
     expand: ['latest_invoice.payment_intent'],
     metadata: {
-      userId: userId.toString(),
+      userId: req.user._id.toString(),
       type: 'adopcion',
-      plan: plan,
-      petId: petId || 'general'
-    }
-  });
-
-  // Guardar en BD
-  const dbSubscription = await Subscription.create({
-    user: userId,
-    type: 'adopcion',
-    status: 'incomplete',
-    stripeSubscriptionId: subscription.id,
-    stripeCustomerId: customer.id,
-    stripePriceId: price.id,
-    amount: amount,
-    currency: 'usd',
-    pet: petId || null,
-    currentPeriodStart: new Date(subscription.current_period_start * 1000),
-    currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-    metadata: {
-      plan: plan
-    }
+      plan,
+      ...(petId && { petId }),
+    },
   });
 
   res.status(200).json({
     status: 'success',
     data: {
+      subscriptionId: subscription.id,
       clientSecret: subscription.latest_invoice.payment_intent.client_secret,
-      subscriptionId: dbSubscription._id,
-      amount: amount,
-      plan: plan,
-      petId: petId || null
-    }
+      customerId: customer.id,
+    },
   });
 });
 
 // ============================================
-// OBTENER HISTORIAL DE PAGOS
+// WEBHOOK DE STRIPE
+// ============================================
+exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    console.error('⚠️ Webhook Error:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Manejar eventos
+  switch (event.type) {
+    case 'payment_intent.succeeded':
+      const paymentIntent = event.data.object;
+      console.log('✅ Pago exitoso:', paymentIntent.id);
+      break;
+
+    case 'invoice.payment_succeeded':
+      const invoice = event.data.object;
+      console.log('✅ Suscripción pagada:', invoice.subscription);
+      break;
+
+    case 'customer.subscription.deleted':
+      const subscription = event.data.object;
+      console.log('❌ Suscripción cancelada:', subscription.id);
+      break;
+
+    default:
+      console.log(`⚠️ Evento no manejado: ${event.type}`);
+  }
+
+  res.json({ received: true });
+});
+
+// ============================================
+// OBTENER MIS PAGOS
 // ============================================
 exports.getMyPayments = catchAsync(async (req, res, next) => {
-  const payments = await Payment.find({ user: req.user.id })
-    .sort('-createdAt')
-    .populate('pet', 'name images');
+  const charges = await stripe.charges.list({
+    limit: 50,
+  });
+
+  const userCharges = charges.data.filter(
+    (charge) => charge.metadata.userId === req.user._id.toString()
+  );
 
   res.status(200).json({
     status: 'success',
-    results: payments.length,
+    results: userCharges.length,
     data: {
-      payments
-    }
+      payments: userCharges,
+    },
   });
 });
 
@@ -325,16 +240,33 @@ exports.getMyPayments = catchAsync(async (req, res, next) => {
 // OBTENER MIS SUSCRIPCIONES
 // ============================================
 exports.getMySubscriptions = catchAsync(async (req, res, next) => {
-  const subscriptions = await Subscription.find({ user: req.user.id })
-    .sort('-createdAt')
-    .populate('pet', 'name images');
+  // Buscar customer del usuario
+  const customers = await stripe.customers.list({
+    email: req.user.email,
+    limit: 1,
+  });
+
+  if (customers.data.length === 0) {
+    return res.status(200).json({
+      status: 'success',
+      results: 0,
+      data: {
+        subscriptions: [],
+      },
+    });
+  }
+
+  const subscriptions = await stripe.subscriptions.list({
+    customer: customers.data[0].id,
+    limit: 50,
+  });
 
   res.status(200).json({
     status: 'success',
-    results: subscriptions.length,
+    results: subscriptions.data.length,
     data: {
-      subscriptions
-    }
+      subscriptions: subscriptions.data,
+    },
   });
 });
 
@@ -344,153 +276,13 @@ exports.getMySubscriptions = catchAsync(async (req, res, next) => {
 exports.cancelSubscription = catchAsync(async (req, res, next) => {
   const { subscriptionId } = req.params;
 
-  const subscription = await Subscription.findOne({
-    _id: subscriptionId,
-    user: req.user.id
-  });
-
-  if (!subscription) {
-    return next(new AppError('Suscripción no encontrada', 404));
-  }
-
-  if (subscription.status === 'canceled') {
-    return next(new AppError('La suscripción ya está cancelada', 400));
-  }
-
-  // Cancelar en Stripe
-  await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
-    cancel_at_period_end: true
-  });
-
-  // Actualizar en BD
-  subscription.cancelAtPeriodEnd = true;
-  await subscription.save();
+  const subscription = await stripe.subscriptions.cancel(subscriptionId);
 
   res.status(200).json({
     status: 'success',
-    message: 'Suscripción cancelada. Se mantendrá activa hasta el final del período',
+    message: 'Suscripción cancelada exitosamente',
     data: {
-      subscription
-    }
+      subscription,
+    },
   });
 });
-
-// ============================================
-// WEBHOOK DE STRIPE
-// ============================================
-exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error('⚠️ Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  console.log('✅ Webhook received:', event.type);
-
-  // Manejar eventos
-  switch (event.type) {
-    case 'payment_intent.succeeded':
-      await handlePaymentIntentSucceeded(event.data.object);
-      break;
-
-    case 'payment_intent.payment_failed':
-      await handlePaymentIntentFailed(event.data.object);
-      break;
-
-    case 'invoice.payment_succeeded':
-      await handleInvoicePaymentSucceeded(event.data.object);
-      break;
-
-    case 'customer.subscription.updated':
-      await handleSubscriptionUpdated(event.data.object);
-      break;
-
-    case 'customer.subscription.deleted':
-      await handleSubscriptionDeleted(event.data.object);
-      break;
-
-    default:
-      console.log(`Unhandled event type ${event.type}`);
-  }
-
-  res.json({ received: true });
-});
-
-// ============================================
-// FUNCIONES AUXILIARES PARA WEBHOOKS
-// ============================================
-async function handlePaymentIntentSucceeded(paymentIntent) {
-  const payment = await Payment.findOne({ 
-    stripePaymentIntentId: paymentIntent.id 
-  });
-
-  if (payment) {
-    payment.status = 'completed';
-    payment.paidAt = new Date();
-    await payment.save();
-    console.log('✅ Payment marked as completed:', payment._id);
-  }
-}
-
-async function handlePaymentIntentFailed(paymentIntent) {
-  const payment = await Payment.findOne({ 
-    stripePaymentIntentId: paymentIntent.id 
-  });
-
-  if (payment) {
-    payment.status = 'failed';
-    payment.errorMessage = paymentIntent.last_payment_error?.message || 'Payment failed';
-    await payment.save();
-    console.log('❌ Payment marked as failed:', payment._id);
-  }
-}
-
-async function handleInvoicePaymentSucceeded(invoice) {
-  const subscription = await Subscription.findOne({
-    stripeSubscriptionId: invoice.subscription
-  });
-
-  if (subscription) {
-    subscription.status = 'active';
-    subscription.currentPeriodStart = new Date(invoice.period_start * 1000);
-    subscription.currentPeriodEnd = new Date(invoice.period_end * 1000);
-    await subscription.save();
-    console.log('✅ Subscription marked as active:', subscription._id);
-  }
-}
-
-async function handleSubscriptionUpdated(stripeSubscription) {
-  const subscription = await Subscription.findOne({
-    stripeSubscriptionId: stripeSubscription.id
-  });
-
-  if (subscription) {
-    subscription.status = stripeSubscription.status;
-    subscription.currentPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
-    subscription.currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
-    subscription.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end;
-    await subscription.save();
-    console.log('✅ Subscription updated:', subscription._id);
-  }
-}
-
-async function handleSubscriptionDeleted(stripeSubscription) {
-  const subscription = await Subscription.findOne({
-    stripeSubscriptionId: stripeSubscription.id
-  });
-
-  if (subscription) {
-    subscription.status = 'canceled';
-    subscription.canceledAt = new Date();
-    await subscription.save();
-    console.log('✅ Subscription canceled:', subscription._id);
-  }
-}
