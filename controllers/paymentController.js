@@ -4,13 +4,22 @@ const AppError = require('../utils/appError');
 // ============================================
 // FUNCIÓN HELPER PARA OBTENER STRIPE
 // ============================================
+// ============================================
+// FUNCIÓN HELPER PARA OBTENER STRIPE
+// ============================================
 const getStripe = () => {
+  // 🔍 DEBUG: Ver qué variables están cargadas
+  console.log('🔍 DEBUG - Variables de entorno:');
+  console.log('STRIPE_SECRET_KEY existe:', !!process.env.STRIPE_SECRET_KEY);
+  console.log('STRIPE_SECRET_KEY empieza con sk_test:', process.env.STRIPE_SECRET_KEY?.startsWith('sk_test'));
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('Todas las variables ENV:', Object.keys(process.env).filter(key => key.includes('STRIPE')));
+  
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY no está configurada');
   }
   return require('stripe')(process.env.STRIPE_SECRET_KEY);
 };
-
 // ============================================
 // MAPEO DE PLANES A PRICE IDS
 // ============================================
