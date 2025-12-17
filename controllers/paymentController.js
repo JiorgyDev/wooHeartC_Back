@@ -4,22 +4,13 @@ const AppError = require('../utils/appError');
 // ============================================
 // FUNCIÓN HELPER PARA OBTENER STRIPE
 // ============================================
-// ============================================
-// FUNCIÓN HELPER PARA OBTENER STRIPE
-// ============================================
 const getStripe = () => {
-  // 🔍 DEBUG: Ver qué variables están cargadas
-  console.log('🔍 DEBUG - Variables de entorno:');
-  console.log('STRIPE_SECRET_KEY existe:', !!process.env.STRIPE_SECRET_KEY);
-  console.log('STRIPE_SECRET_KEY empieza con sk_test:', process.env.STRIPE_SECRET_KEY?.startsWith('sk_test'));
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('Todas las variables ENV:', Object.keys(process.env).filter(key => key.includes('STRIPE')));
-  
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY no está configurada');
   }
   return require('stripe')(process.env.STRIPE_SECRET_KEY);
 };
+
 // ============================================
 // MAPEO DE PLANES A PRICE IDS
 // ============================================
@@ -82,6 +73,8 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
   const stripe = getStripe();
   const { plan } = req.body;
 
+  console.log('📦 Request recibido:', { plan, userId: req.user._id });
+
   // Validar plan
   if (!plan || !PRICE_IDS.suscripcion[plan]) {
     return next(
@@ -90,6 +83,7 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
   }
 
   const priceId = PRICE_IDS.suscripcion[plan];
+  console.log('💳 Price ID seleccionado:', priceId);
 
   // Buscar o crear cliente en Stripe
   let customer;
@@ -100,6 +94,7 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
 
   if (existingCustomers.data.length > 0) {
     customer = existingCustomers.data[0];
+    console.log('✅ Cliente existente encontrado:', customer.id);
   } else {
     customer = await stripe.customers.create({
       email: req.user.email,
@@ -108,6 +103,7 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
         userId: req.user._id.toString(),
       },
     });
+    console.log('✨ Nuevo cliente creado:', customer.id);
   }
 
   // Crear suscripción
@@ -126,11 +122,26 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
     },
   });
 
+  console.log('🎉 Suscripción creada:', subscription.id);
+  console.log('📄 Latest Invoice:', subscription.latest_invoice?.id);
+  console.log('💰 Payment Intent:', subscription.latest_invoice?.payment_intent?.id);
+
+  // ✅ CORRECCIÓN: Verificar que payment_intent exista y tenga client_secret
+  const paymentIntent = subscription.latest_invoice?.payment_intent;
+  
+  if (!paymentIntent || !paymentIntent.client_secret) {
+    console.error('❌ ERROR: No se pudo obtener el client_secret');
+    console.error('Subscription completo:', JSON.stringify(subscription, null, 2));
+    return next(
+      new AppError('Error al procesar la suscripción. Intenta de nuevo.', 500)
+    );
+  }
+
   res.status(200).json({
     status: 'success',
     data: {
       subscriptionId: subscription.id,
-      clientSecret: subscription.latest_invoice.payment_intent.client_secret,
+      clientSecret: paymentIntent.client_secret,
       customerId: customer.id,
     },
   });
@@ -143,12 +154,15 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
   const stripe = getStripe();
   const { plan, petId } = req.body;
 
+  console.log('📦 Request recibido:', { plan, petId, userId: req.user._id });
+
   // Validar plan
   if (!plan || !PRICE_IDS.adopcion[plan]) {
     return next(new AppError('Plan inválido. Opciones: 5, 10, 20', 400));
   }
 
   const priceId = PRICE_IDS.adopcion[plan];
+  console.log('💳 Price ID seleccionado:', priceId);
 
   // Buscar o crear cliente en Stripe
   let customer;
@@ -159,6 +173,7 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
 
   if (existingCustomers.data.length > 0) {
     customer = existingCustomers.data[0];
+    console.log('✅ Cliente existente encontrado:', customer.id);
   } else {
     customer = await stripe.customers.create({
       email: req.user.email,
@@ -167,6 +182,7 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
         userId: req.user._id.toString(),
       },
     });
+    console.log('✨ Nuevo cliente creado:', customer.id);
   }
 
   // Crear suscripción
@@ -186,11 +202,24 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
     },
   });
 
+  console.log('🎉 Suscripción creada:', subscription.id);
+
+  // ✅ CORRECCIÓN: Verificar que payment_intent exista y tenga client_secret
+  const paymentIntent = subscription.latest_invoice?.payment_intent;
+  
+  if (!paymentIntent || !paymentIntent.client_secret) {
+    console.error('❌ ERROR: No se pudo obtener el client_secret');
+    console.error('Subscription completo:', JSON.stringify(subscription, null, 2));
+    return next(
+      new AppError('Error al procesar la adopción. Intenta de nuevo.', 500)
+    );
+  }
+
   res.status(200).json({
     status: 'success',
     data: {
       subscriptionId: subscription.id,
-      clientSecret: subscription.latest_invoice.payment_intent.client_secret,
+      clientSecret: paymentIntent.client_secret,
       customerId: customer.id,
     },
   });
