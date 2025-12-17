@@ -106,13 +106,14 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
     console.log('✨ Nuevo cliente creado:', customer.id);
   }
 
-  // Crear suscripción
+  // ✅ CORRECCIÓN: Usar add_invoice_items + payment_behavior: error_if_incomplete
   const subscription = await stripe.subscriptions.create({
     customer: customer.id,
     items: [{ price: priceId }],
-    payment_behavior: 'default_incomplete',
+    payment_behavior: 'error_if_incomplete',
     payment_settings: {
       save_default_payment_method: 'on_subscription',
+      payment_method_types: ['card'],
     },
     expand: ['latest_invoice.payment_intent'],
     metadata: {
@@ -124,18 +125,21 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
 
   console.log('🎉 Suscripción creada:', subscription.id);
   console.log('📄 Latest Invoice:', subscription.latest_invoice?.id);
-  console.log('💰 Payment Intent:', subscription.latest_invoice?.payment_intent?.id);
 
-  // ✅ CORRECCIÓN: Verificar que payment_intent exista y tenga client_secret
-  const paymentIntent = subscription.latest_invoice?.payment_intent;
+  // Verificar payment_intent
+  const invoice = subscription.latest_invoice;
+  const paymentIntent = typeof invoice === 'object' ? invoice.payment_intent : null;
   
-  if (!paymentIntent || !paymentIntent.client_secret) {
+  if (!paymentIntent || typeof paymentIntent !== 'object' || !paymentIntent.client_secret) {
     console.error('❌ ERROR: No se pudo obtener el client_secret');
-    console.error('Subscription completo:', JSON.stringify(subscription, null, 2));
+    console.error('Invoice status:', invoice?.status);
+    console.error('PaymentIntent:', paymentIntent);
     return next(
       new AppError('Error al procesar la suscripción. Intenta de nuevo.', 500)
     );
   }
+
+  console.log('✅ Client Secret obtenido:', paymentIntent.client_secret.substring(0, 20) + '...');
 
   res.status(200).json({
     status: 'success',
@@ -185,13 +189,14 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
     console.log('✨ Nuevo cliente creado:', customer.id);
   }
 
-  // Crear suscripción
+  // ✅ CORRECCIÓN: Usar error_if_incomplete
   const subscription = await stripe.subscriptions.create({
     customer: customer.id,
     items: [{ price: priceId }],
-    payment_behavior: 'default_incomplete',
+    payment_behavior: 'error_if_incomplete',
     payment_settings: {
       save_default_payment_method: 'on_subscription',
+      payment_method_types: ['card'],
     },
     expand: ['latest_invoice.payment_intent'],
     metadata: {
@@ -204,16 +209,20 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
 
   console.log('🎉 Suscripción creada:', subscription.id);
 
-  // ✅ CORRECCIÓN: Verificar que payment_intent exista y tenga client_secret
-  const paymentIntent = subscription.latest_invoice?.payment_intent;
+  // Verificar payment_intent
+  const invoice = subscription.latest_invoice;
+  const paymentIntent = typeof invoice === 'object' ? invoice.payment_intent : null;
   
-  if (!paymentIntent || !paymentIntent.client_secret) {
+  if (!paymentIntent || typeof paymentIntent !== 'object' || !paymentIntent.client_secret) {
     console.error('❌ ERROR: No se pudo obtener el client_secret');
-    console.error('Subscription completo:', JSON.stringify(subscription, null, 2));
+    console.error('Invoice status:', invoice?.status);
+    console.error('PaymentIntent:', paymentIntent);
     return next(
       new AppError('Error al procesar la adopción. Intenta de nuevo.', 500)
     );
   }
+
+  console.log('✅ Client Secret obtenido:', paymentIntent.client_secret.substring(0, 20) + '...');
 
   res.status(200).json({
     status: 'success',
