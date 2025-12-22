@@ -31,6 +31,14 @@ const getPets = async (req, res) => {
       .limit(limit)
       .lean();
 
+    if (req.user) {
+      pets.forEach(pet => {
+        pet.isLiked = pet.likes?.some(like => 
+          like.userId.toString() === req.user._id.toString()
+        ) || false;
+      });
+    }  
+
     const totalPets = await Pet.countDocuments(filters);
     console.log(`📊 Se encontraron ${pets.length} mascotas, total: ${totalPets}`);
     pets.forEach((pet, i) => {
@@ -372,12 +380,34 @@ const toggleLikePet = async (req, res) => {
       });
     }
 
+    const userId = req.user._id;
+    const likeIndex = pet.likes.findIndex(
+      like => like.userId.toString() === userId.toString()
+    );
+
+    let isLiked;
+
+    if (likeIndex > -1) {
+      // Ya tiene like, quitarlo
+      pet.likes.splice(likeIndex, 1);
+      isLiked = false;
+      console.log('❤️ Like removido por usuario:', req.user.name);
+    } else {
+      // No tiene like, agregarlo
+      pet.likes.push({ userId, createdAt: new Date() });
+      isLiked = true;
+      console.log('💖 Like agregado por usuario:', req.user.name);
+    }
+
+    await pet.save();
+
     res.status(200).json({
       success: true,
-      message: 'Like procesado (funcionalidad simplificada)',
+      message: isLiked ? 'Like agregado' : 'Like removido',
       data: {
         petId: pet._id,
-        message: 'Like functionality will be implemented when auth is active'
+        isLiked,
+        likesCount: pet.likes.length
       }
     });
 
@@ -391,10 +421,108 @@ const toggleLikePet = async (req, res) => {
   }
 };
 
-// @desc    Toggle favorito en una mascota (simplificado para desarrollo)
-// @route   POST /api/v1/pets/:id/favorite
-// @access  Private (temporalmente público)
-const toggleFavoritePet = async (req, res) => {
+// @desc    Crear comentario en una mascota
+// @route   POST /api/v1/pets/:id/comment
+// @access  Private
+const createComment = async (req, res) => {
+  try {
+    const { content } = req.body;
+
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'El contenido del comentario es requerido'
+      });
+    }
+
+    if (content.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: 'El comentario no puede exceder 500 caracteres'
+      });
+    }
+
+    const pet = await Pet.findById(req.params.id);
+
+    if (!pet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Mascota no encontrada'
+      });
+    }
+
+    const newComment = {
+      userId: req.user._id,
+      username: req.user.name,
+      content: content.trim(),
+      createdAt: new Date()
+    };
+
+    pet.comments.push(newComment);
+    await pet.save();
+
+    console.log('💬 Comentario creado por:', req.user.name);
+
+    res.status(201).json({
+      success: true,
+      message: 'Comentario creado exitosamente',
+      data: {
+        comment: newComment,
+        commentsCount: pet.comments.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al crear el comentario',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Obtener comentarios de una mascota
+// @route   GET /api/v1/pets/:id/comments
+// @access  Public
+const getComments = async (req, res) => {
+  try {
+    const pet = await Pet.findById(req.params.id).select('comments').lean();
+
+    if (!pet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Mascota no encontrada'
+      });
+    }
+
+    // Ordenar comentarios por más recientes
+    const comments = (pet.comments || []).sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        comments,
+        total: comments.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting comments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener comentarios',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Incrementar contador de shares
+// @route   POST /api/v1/pets/:id/share
+// @access  Public
+const incrementShare = async (req, res) => {
   try {
     const pet = await Pet.findById(req.params.id);
 
@@ -405,110 +533,33 @@ const toggleFavoritePet = async (req, res) => {
       });
     }
 
+    pet.shares = (pet.shares || 0) + 1;
+    await pet.save();
+
+    console.log('🔗 Share incrementado para:', pet.name, '- Total:', pet.shares);
+
     res.status(200).json({
       success: true,
-      message: 'Favorito procesado (funcionalidad simplificada)',
+      message: 'Share registrado',
       data: {
         petId: pet._id,
-        message: 'Favorite functionality will be implemented when auth is active'
+        shares: pet.shares
       }
     });
 
   } catch (error) {
-    console.error('Error toggling favorite:', error);
+    console.error('Error incrementing share:', error);
     res.status(500).json({
       success: false,
-      message: 'Error al procesar favorito',
+      message: 'Error al registrar el share',
       error: error.message
     });
   }
 };
 
-// @desc    Obtener mascotas del usuario actual (simplificado)
-// @route   GET /api/v1/pets/user/my-pets
-// @access  Private (temporalmente público)
-const getMyPets = async (req, res) => {
-  try {
-    // Por ahora devolver todas las mascotas
-    const pets = await Pet.find({})
-      .sort({ createdAt: -1 })
-      .lean();
-
-    res.status(200).json({
-      success: true,
-      message: 'Mostrando todas las mascotas (funcionalidad de usuario será implementada con auth)',
-      data: pets
-    });
-
-  } catch (error) {
-    console.error('Error getting pets:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al obtener las mascotas',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Buscar mascotas
-// @route   GET /api/v1/pets/search
-// @access  Public
-const searchPets = async (req, res) => {
-  try {
-    const { q, species, breed } = req.query;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    let searchFilter = {
-      adoptionStatus: 'available'
-    };
-
-    // Búsqueda por texto
-    if (q) {
-      searchFilter.$or = [
-        { name: { $regex: q, $options: 'i' } },
-        { description: { $regex: q, $options: 'i' } },
-        { breed: { $regex: q, $options: 'i' } }
-      ];
-    }
-
-    // Filtros adicionales
-    if (species) searchFilter.species = species;
-    if (breed) searchFilter.breed = new RegExp(breed, 'i');
-
-    const pets = await Pet.find(searchFilter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    const totalResults = await Pet.countDocuments(searchFilter);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        pets,
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(totalResults / limit),
-          totalResults,
-          hasNext: page < Math.ceil(totalResults / limit),
-          hasPrev: page > 1
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error searching pets:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error en la búsqueda',
-      error: error.message
-    });
-  }
-};
-
+// ============================================
+// ACTUALIZAR EL module.exports AL FINAL
+// ============================================
 module.exports = {
   getPets,
   getPopularPets,
@@ -516,8 +567,11 @@ module.exports = {
   createPet,
   updatePet,
   deletePet,
-  toggleLikePet,
+  toggleLikePet,      // ✅ Ya existía, ahora mejorado
   toggleFavoritePet,
   getMyPets,
-  searchPets
+  searchPets,
+  createComment,      // ✅ NUEVO
+  getComments,        // ✅ NUEVO
+  incrementShare      // ✅ NUEVO
 };

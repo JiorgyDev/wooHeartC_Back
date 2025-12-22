@@ -19,9 +19,9 @@ const petSchema = new mongoose.Schema(
     },
     breed: {
       type: String,
-      required: false, // ← CAMBIO: Ahora es opcional
+      required: false,
       trim: true,
-      default: "Sin especificar", // ← CAMBIO: Valor por defecto
+      default: "Sin especificar",
       maxlength: [30, "La raza no puede exceder 30 caracteres"],
     },
     age: {
@@ -39,12 +39,13 @@ const petSchema = new mongoose.Schema(
     adoptionStatus: {
       type: String,
       enum: {
-        values: ["available", "pending", "adopted", "hidden"], // ← Agregamos 'hidden'
+        values: ["available", "pending", "adopted", "hidden"],
         message: "El estado debe ser: available, pending, adopted o hidden",
       },
       default: "available",
     },
-    // CAMPOS PARA MÚLTIPLES IMÁGENES DE CLOUDINARY
+    
+    // IMÁGENES
     imageUrls: {
       type: [String],
       default: [],
@@ -53,7 +54,6 @@ const petSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    // CAMPOS PARA UNA IMAGEN (COMPATIBILIDAD)
     imageUrl: {
       type: String,
       default: null,
@@ -62,16 +62,77 @@ const petSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+
+    // ============================================
+    // ✅ NUEVOS CAMPOS PARA LIKES, COMMENTS, SHARES
+    // ============================================
+    likes: [{
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+
+    comments: [{
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+      },
+      username: {
+        type: String,
+        required: true
+      },
+      content: {
+        type: String,
+        required: true,
+        maxlength: 500
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+
+    shares: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+
+    adopcion: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    apoyo: {
+      type: Number,
+      default: 0,
+      min: 0
+    }
   },
   {
-    timestamps: true, // Agrega createdAt y updatedAt automáticamente
-    toJSON: { virtuals: true },
+    timestamps: true,
+    toJSON: { 
+      virtuals: true,
+      transform: function(doc, ret) {
+        ret.likesCount = ret.likes ? ret.likes.length : 0;
+        ret.commentsCount = ret.comments ? ret.comments.length : 0;
+        return ret;
+      }
+    },
     toObject: { virtuals: true },
   }
 );
 
-// Índices para optimizar búsquedas
+// Índices
 petSchema.index({ species: 1, adoptionStatus: 1 });
 petSchema.index({ createdAt: -1 });
+petSchema.index({ 'likes.userId': 1 });
 
 module.exports = mongoose.model("Pet", petSchema);

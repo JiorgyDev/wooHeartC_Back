@@ -13,7 +13,10 @@ const {
   toggleLikePet,
   toggleFavoritePet,
   getMyPets,
-  searchPets
+  searchPets,
+  createComment,      // ✅ AGREGAR
+  getComments,        // ✅ AGREGAR
+  incrementShare 
 } = require('../controllers/petController');
 
 // Importar middlewares
@@ -48,6 +51,8 @@ router.post('/test/simple', (req, res) => {
 
 router.get('/popular', getPopularPets); // GET /api/v1/pets/popular - Mascotas populares  
 router.get('/search', searchPets); // GET /api/v1/pets/search - Búsqueda
+router.get('/:id/comments', getComments);    // GET /api/v1/pets/:id/comments - Obtener comentarios
+router.post('/:id/share', incrementShare);
 
 // Esta ruta DEBE ir después de todas las rutas específicas
 router.get('/:id', getPetById); // GET /api/v1/pets/:id - Mascota específica
@@ -80,5 +85,6 @@ router.delete('/:id', deletePet); // DELETE /api/v1/pets/:id - Eliminar mascota
 // Rutas de interacción
 router.post('/:id/like', toggleLikePet); // POST /api/v1/pets/:id/like - Toggle like
 router.post('/:id/favorite', toggleFavoritePet); // POST /api/v1/pets/:id/favorite - Toggle favorito
+router.post('/:id/comment', createComment);
 
 module.exports = router;
