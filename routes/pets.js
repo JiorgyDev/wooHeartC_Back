@@ -1,4 +1,3 @@
-// routes/pets.js
 const express = require('express');
 const router = express.Router();
 
@@ -11,11 +10,8 @@ const {
   updatePet,
   deletePet,
   toggleLikePet,
-  toggleFavoritePet,
-  getMyPets,
-  searchPets,
-  createComment,      // ✅ AGREGAR
-  getComments,        // ✅ AGREGAR
+  createComment,
+  getComments,
   incrementShare 
 } = require('../controllers/petController');
 
@@ -50,9 +46,8 @@ router.post('/test/simple', (req, res) => {
 }); 
 
 router.get('/popular', getPopularPets); // GET /api/v1/pets/popular - Mascotas populares  
-router.get('/search', searchPets); // GET /api/v1/pets/search - Búsqueda
-router.get('/:id/comments', getComments);    // GET /api/v1/pets/:id/comments - Obtener comentarios
-router.post('/:id/share', incrementShare);
+router.get('/:id/comments', getComments); // GET /api/v1/pets/:id/comments - Obtener comentarios
+router.post('/:id/share', incrementShare); // POST /api/v1/pets/:id/share - Incrementar shares
 
 // Esta ruta DEBE ir después de todas las rutas específicas
 router.get('/:id', getPetById); // GET /api/v1/pets/:id - Mascota específica
@@ -68,9 +63,6 @@ router.use((req, res, next) => {
   next();
 });
 
-// Ruta para obtener mis mascotas (requiere autenticación)
-router.get('/user/my-pets', getMyPets); // GET /api/v1/pets/user/my-pets - Mis mascotas
-
 // RUTAS CON UPLOAD DE IMÁGENES
 router.post('/', uploadPetImages.array('images', 5), handleUploadError, processUploadedImages, createPet);
 
@@ -84,7 +76,6 @@ router.delete('/:id', deletePet); // DELETE /api/v1/pets/:id - Eliminar mascota
 
 // Rutas de interacción
 router.post('/:id/like', toggleLikePet); // POST /api/v1/pets/:id/like - Toggle like
-router.post('/:id/favorite', toggleFavoritePet); // POST /api/v1/pets/:id/favorite - Toggle favorito
-router.post('/:id/comment', createComment);
+router.post('/:id/comment', createComment); // POST /api/v1/pets/:id/comment - Crear comentario
 
 module.exports = router;
