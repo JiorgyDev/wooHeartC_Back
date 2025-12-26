@@ -6,13 +6,13 @@ const { cloudinary } = require('../config/cloudinary');
 // @desc    Obtener todas las mascotas disponibles (feed estilo TikTok)
 // @route   GET /api/v1/pets
 // @access  Public
+// ✅ DESPUÉS (CORRECTO):
 const getPets = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Filtros opcionales - MODIFICADO PARA SER FLEXIBLE
     const filters = {};
 
     if (req.query.adoptionStatus) {
@@ -25,30 +25,38 @@ const getPets = async (req, res) => {
     if (req.query.breed) filters.breed = new RegExp(req.query.breed, 'i');
 
     console.log('📋 Obteniendo mascotas con filtros:', filters);
+    
+    // ✅ CAMBIO 1: NO usar .lean() para mantener virtuals
     const pets = await Pet.find(filters)
-      .sort({ createdAt: -1 }) // Más recientes primero
+      .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
-      .lean();
-
-    if (req.user) {
-      pets.forEach(pet => {
-        pet.isLiked = pet.likes?.some(like => 
-          like.userId.toString() === req.user._id.toString()
-        ) || false;
-      });
-    }  
+      .limit(limit);
 
     const totalPets = await Pet.countDocuments(filters);
     console.log(`📊 Se encontraron ${pets.length} mascotas, total: ${totalPets}`);
-    pets.forEach((pet, i) => {
-      console.log(`   ${i+1}. ${pet.name} - Imagen: ${pet.imageUrl ? 'SÍ' : 'NO'}`);
+
+    // ✅ CAMBIO 2: Convertir a JSON y calcular isLiked correctamente
+    const petsWithLikes = pets.map(pet => {
+      const petObj = pet.toJSON(); // Incluye los virtuals (likesCount, commentsCount)
+      
+      // Calcular isLiked basado en el usuario autenticado
+      if (req.user) {
+        petObj.isLiked = pet.likes.some(like => 
+          like.userId.toString() === req.user._id.toString()
+        );
+      } else {
+        petObj.isLiked = false;
+      }
+
+      console.log(`   ${pet.name} - Likes: ${petObj.likesCount}, isLiked: ${petObj.isLiked}`);
+      
+      return petObj;
     });
 
     res.status(200).json({
       success: true,
       data: {
-        pets,
+        pets: petsWithLikes,
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(totalPets / limit),
@@ -568,9 +576,9 @@ module.exports = {
   updatePet,
   deletePet,
   toggleLikePet,      // ✅ Ya existía, ahora mejorado
-  toggleFavoritePet,
-  getMyPets,
-  searchPets,
+  // toggleFavoritePet,
+  // getMyPets,
+  // searchPets,
   createComment,      // ✅ NUEVO
   getComments,        // ✅ NUEVO
   incrementShare      // ✅ NUEVO
