@@ -47,10 +47,13 @@ app.use("/api", limiter);
 
 // ⚠️ NUEVO: Webhook de Stripe DEBE estar ANTES de express.json()
 // Stripe necesita el body RAW (sin parsear a JSON)
-app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
+app.post('/api/v1/payments/webhook', 
+  express.raw({ type: 'application/json' }),
+  require('./controllers/paymentController').handleStripeWebhook
+);
 
 // Body parser middleware
-app.use(express.json({ limit: "10mb" })); // Aumentado para imágenes
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 

@@ -2,79 +2,114 @@
 const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema({
+  // Usuario que realizó el pago
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'El pago debe estar asociado a un usuario']
   },
+  
+  // Tipo de pago
   type: {
     type: String,
-    enum: ['apoyo', 'suscripcion', 'adopcion'],
-    required: [true, 'El tipo de pago es requerido']
+    enum: ['donation', 'apoyo'],
+    default: 'donation',
+    required: true
   },
+  
+  // Monto pagado
   amount: {
     type: Number,
-    required: [true, 'El monto es requerido']
+    required: [true, 'El monto es requerido'],
+    min: [1, 'El monto mínimo es $1']
   },
+  
+  // Moneda (USD)
   currency: {
     type: String,
     default: 'usd',
-    enum: ['usd', 'bob', 'eur']
+    uppercase: true
   },
+  
+  // Estado del pago
   status: {
     type: String,
-    enum: ['pending', 'completed', 'failed', 'refunded'],
-    default: 'pending'
+    enum: ['pending', 'succeeded', 'failed', 'canceled'],
+    default: 'pending',
+    required: true
   },
-  // IDs de Stripe
+  
+  // ID del PaymentIntent de Stripe
   stripePaymentIntentId: {
     type: String,
-    unique: true,
-    sparse: true
+    required: true,
+    unique: true
   },
+  
+  // ID del cliente en Stripe
   stripeCustomerId: {
-    type: String
-  },
-  stripeSubscriptionId: {
     type: String,
-    sparse: true
+    required: true
   },
-  // Información adicional
+  
+  // Descripción del pago
   description: {
     type: String,
     default: ''
   },
+  
+  // Fecha en que se completó el pago
+  paidAt: {
+    type: Date
+  },
+  
+  // Metadata adicional
   metadata: {
     type: Map,
     of: String,
     default: {}
-  },
-  // Para adopciones
-  pet: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Pet'
-  },
-  // Fecha de pago
-  paidAt: {
-    type: Date
-  },
-  // Error si falla
-  errorMessage: {
-    type: String
   }
 }, {
-  timestamps: true
+  timestamps: true, // Crea automáticamente createdAt y updatedAt
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Índices
+// ============================================
+// ÍNDICES (para búsquedas rápidas)
+// ============================================
 paymentSchema.index({ user: 1, createdAt: -1 });
 paymentSchema.index({ stripePaymentIntentId: 1 });
 paymentSchema.index({ status: 1 });
-paymentSchema.index({ type: 1 });
 
-// Virtual para formatear el monto
-paymentSchema.virtual('formattedAmount').get(function() {
-  return `$${(this.amount / 100).toFixed(2)}`;
+// ============================================
+// VIRTUAL: Monto formateado
+// ============================================
+paymentSchema.virtual('amountFormatted').get(function() {
+  return `$${this.amount.toFixed(2)} ${this.currency.toUpperCase()}`;
 });
+
+// ============================================
+// MÉTODO ESTÁTICO: Obtener total de donaciones
+// ============================================
+paymentSchema.statics.getTotalDonations = async function(userId) {
+  const result = await this.aggregate([
+    {
+      $match: {
+        user: mongoose.Types.ObjectId(userId),
+        status: 'succeeded'
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: '$amount' },
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  return result[0] || { total: 0, count: 0 };
+};
 
 module.exports = mongoose.model('Payment', paymentSchema);

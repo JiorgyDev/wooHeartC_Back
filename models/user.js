@@ -123,6 +123,75 @@ const userSchema = new mongoose.Schema({
   unique: true,
   sparse: true
 },
+// ============================================
+// ✅ HISTORIAL DE ADOPCIONES (Plan Guardián/Protector/Ángel)
+// ============================================
+adoptions: [{
+  petId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Pet'
+  },
+  petName: String,
+  petImage: String,
+  plan: {
+    type: String,
+    enum: ['guardian', 'protector', 'angel'] // guardian=$5, protector=$10, angel=$20
+  },
+  amount: Number,
+  startDate: Date,
+  endDate: Date,
+  status: {
+    type: String,
+    enum: ['active', 'cancelled', 'completed'],
+    default: 'active'
+  },
+  subscriptionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subscription'
+  },
+  stripeSubscriptionId: String
+}],
+
+// ============================================
+// ✅ HISTORIAL DE DONACIONES (Apoyos únicos)
+// ============================================
+donations: [{
+  amount: Number,
+  date: {
+    type: Date,
+    default: Date.now
+  },
+  description: String,
+  stripePaymentIntentId: String,
+  status: {
+    type: String,
+    enum: ['succeeded', 'pending', 'failed'],
+    default: 'succeeded'
+  }
+}],
+
+// ============================================
+// ✅ SUSCRIPCIÓN GENERAL MENSUAL ($5, $10, $60, $150)
+// ============================================
+generalSubscription: {
+  plan: {
+    type: String,
+    enum: ['5', '10', '60', '150']
+  },
+  amount: Number,
+  startDate: Date,
+  endDate: Date,
+  status: {
+    type: String,
+    enum: ['active', 'cancelled', 'completed'],
+    default: 'active'
+  },
+  subscriptionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subscription'
+  },
+  stripeSubscriptionId: String
+},
 }, {
   timestamps: true,
   toJSON: { virtuals: true },

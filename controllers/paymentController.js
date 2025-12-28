@@ -249,12 +249,16 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
 });
 
 // ============================================
-// WEBHOOK DE STRIPE
+// WEBHOOK DE STRIPE - VERSIÓN MEJORADA
 // ============================================
 exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
   const stripe = getStripe();
   const sig = req.headers['stripe-signature'];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  const User = require('../models/user');
+  const Payment = require('../models/payment');
+  const Subscription = require('../models/subscription');
 
   let event;
 
@@ -265,21 +269,176 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  console.log(`🔔 Evento recibido: ${event.type}`);
+
   // Manejar eventos
   switch (event.type) {
+    // ============================================
+    // PAGO ÚNICO EXITOSO (Donaciones/Apoyo)
+    // ============================================
     case 'payment_intent.succeeded':
       const paymentIntent = event.data.object;
       console.log('✅ Pago exitoso:', paymentIntent.id);
+
+      const metadata = paymentIntent.metadata;
+
+      // Si es un pago de apoyo (donación única)
+      if (metadata.type === 'apoyo') {
+        try {
+          // Guardar en Payment
+          await Payment.create({
+            user: metadata.userId,
+            type: 'apoyo',
+            amount: paymentIntent.amount / 100,
+            currency: paymentIntent.currency,
+            status: 'succeeded',
+            stripePaymentIntentId: paymentIntent.id,
+            stripeCustomerId: paymentIntent.customer,
+            description: `Apoyo a WooHeart - $${paymentIntent.amount / 100} USD`,
+            paidAt: new Date()
+          });
+
+          // Actualizar usuario
+          await User.findByIdAndUpdate(metadata.userId, {
+            $push: {
+              donations: {
+                amount: paymentIntent.amount / 100,
+                date: new Date(),
+                description: `Apoyo a WooHeart - $${paymentIntent.amount / 100} USD`,
+                stripePaymentIntentId: paymentIntent.id,
+                status: 'succeeded'
+              }
+            }
+          });
+
+          console.log('💝 Donación guardada para usuario:', metadata.userId);
+        } catch (error) {
+          console.error('❌ Error guardando donación:', error);
+        }
+      }
       break;
 
-    case 'invoice.payment_succeeded':
-      const invoice = event.data.object;
-      console.log('✅ Suscripción pagada:', invoice.subscription);
-      break;
-
-    case 'customer.subscription.deleted':
+    // ============================================
+    // SUSCRIPCIÓN CREADA/ACTUALIZADA
+    // ============================================
+    case 'customer.subscription.created':
+    case 'customer.subscription.updated':
       const subscription = event.data.object;
-      console.log('❌ Suscripción cancelada:', subscription.id);
+      console.log('🔄 Suscripción actualizada:', subscription.id);
+
+      const subMetadata = subscription.metadata;
+      const userId = subMetadata.userId;
+      const type = subMetadata.type; // 'suscripcion' o 'adopcion'
+      const plan = subMetadata.plan;
+
+      if (!userId) {
+        console.error('❌ userId no encontrado en metadata');
+        break;
+      }
+
+      try {
+        // Guardar/actualizar en modelo Subscription
+        await Subscription.findOneAndUpdate(
+          { stripeSubscriptionId: subscription.id },
+          {
+            user: userId,
+            type: type,
+            status: subscription.status,
+            stripeSubscriptionId: subscription.id,
+            stripeCustomerId: subscription.customer,
+            stripePriceId: subscription.items.data[0].price.id,
+            amount: subscription.items.data[0].price.unit_amount / 100,
+            currency: subscription.currency,
+            currentPeriodStart: new Date(subscription.current_period_start * 1000),
+            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            metadata: subMetadata
+          },
+          { upsert: true, new: true }
+        );
+
+        // Actualizar usuario según tipo
+        if (type === 'suscripcion') {
+          // Suscripción general
+          await User.findByIdAndUpdate(userId, {
+            generalSubscription: {
+              plan: plan,
+              amount: subscription.items.data[0].price.unit_amount / 100,
+              startDate: new Date(subscription.current_period_start * 1000),
+              endDate: new Date(subscription.current_period_end * 1000),
+              status: subscription.status === 'active' ? 'active' : 'cancelled',
+              stripeSubscriptionId: subscription.id
+            }
+          });
+          console.log('✅ Suscripción general guardada');
+        } else if (type === 'adopcion') {
+          // Adopción de mascota
+          const petId = subMetadata.petId;
+          const planName = plan === '5' ? 'guardian' : plan === '10' ? 'protector' : 'angel';
+
+          await User.findByIdAndUpdate(userId, {
+            $push: {
+              adoptions: {
+                petId: petId || null,
+                plan: planName,
+                amount: subscription.items.data[0].price.unit_amount / 100,
+                startDate: new Date(subscription.current_period_start * 1000),
+                endDate: new Date(subscription.current_period_end * 1000),
+                status: subscription.status === 'active' ? 'active' : 'cancelled',
+                stripeSubscriptionId: subscription.id
+              }
+            }
+          });
+          console.log('✅ Adopción guardada');
+        }
+
+        console.log('✅ Suscripción guardada para usuario:', userId);
+      } catch (error) {
+        console.error('❌ Error guardando suscripción:', error);
+      }
+      break;
+
+    // ============================================
+    // SUSCRIPCIÓN CANCELADA
+    // ============================================
+    case 'customer.subscription.deleted':
+      const deletedSub = event.data.object;
+      console.log('❌ Suscripción cancelada:', deletedSub.id);
+
+      try {
+        // Actualizar estado en BD
+        await Subscription.findOneAndUpdate(
+          { stripeSubscriptionId: deletedSub.id },
+          {
+            status: 'canceled',
+            canceledAt: new Date()
+          }
+        );
+
+        // Actualizar usuario
+        const subMeta = deletedSub.metadata;
+        if (subMeta.userId) {
+          if (subMeta.type === 'suscripcion') {
+            await User.findByIdAndUpdate(subMeta.userId, {
+              'generalSubscription.status': 'cancelled'
+            });
+          } else if (subMeta.type === 'adopcion') {
+            await User.findOneAndUpdate(
+              {
+                _id: subMeta.userId,
+                'adoptions.stripeSubscriptionId': deletedSub.id
+              },
+              {
+                $set: { 'adoptions.$.status': 'cancelled' }
+              }
+            );
+          }
+        }
+
+        console.log('✅ Suscripción marcada como cancelada');
+      } catch (error) {
+        console.error('❌ Error cancelando suscripción:', error);
+      }
       break;
 
     default:
@@ -362,5 +521,102 @@ exports.cancelSubscription = catchAsync(async (req, res, next) => {
     data: {
       subscription,
     },
+  });
+});
+// ============================================
+// ✅ NUEVA FUNCIÓN: OBTENER HISTORIAL COMPLETO
+// ============================================
+exports.getUserHistory = catchAsync(async (req, res, next) => {
+  const User = require('../models/user');
+  const Payment = require('../models/payment');
+  const Subscription = require('../models/subscription');
+
+  const userId = req.user._id;
+
+  console.log('📋 Obteniendo historial para usuario:', userId);
+
+  // 1. Obtener datos del usuario
+  const user = await User.findById(userId)
+    .select('adoptions donations generalSubscription')
+    .populate('adoptions.petId', 'name imageUrls')
+    .lean();
+
+  // 2. Obtener pagos únicos (donaciones)
+  const payments = await Payment.find({
+    user: userId,
+    status: 'succeeded'
+  })
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .lean();
+
+  // 3. Obtener suscripciones activas
+  const subscriptions = await Subscription.find({
+    user: userId,
+    status: { $in: ['active', 'past_due'] }
+  })
+    .populate('pet', 'name imageUrls')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  console.log('✅ Historial obtenido:', {
+    adoptions: user?.adoptions?.length || 0,
+    donations: payments.length,
+    subscriptions: subscriptions.length
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      adoptions: user?.adoptions || [],
+      donations: payments || [],
+      generalSubscription: user?.generalSubscription || null,
+      activeSubscriptions: subscriptions || []
+    }
+  });
+});
+
+// ============================================
+// ✅ NUEVA FUNCIÓN: OBTENER ESTADÍSTICAS
+// ============================================
+exports.getUserStats = catchAsync(async (req, res, next) => {
+  const Payment = require('../models/payment');
+  const Subscription = require('../models/subscription');
+  const User = require('../models/user');
+
+  const userId = req.user._id;
+
+  console.log('📊 Obteniendo estadísticas para usuario:', userId);
+
+  // 1. Total de donaciones
+  const totalDonations = await Payment.getTotalDonations(userId);
+
+  // 2. Suscripciones activas
+  const activeSubscriptions = await Subscription.countDocuments({
+    user: userId,
+    status: 'active'
+  });
+
+  // 3. Adopciones activas
+  const user = await User.findById(userId).select('adoptions');
+  const activeAdoptions = user?.adoptions?.filter(
+    adoption => adoption.status === 'active'
+  ).length || 0;
+
+  console.log('✅ Estadísticas:', {
+    totalDonado: totalDonations.total,
+    cantidadDonaciones: totalDonations.count,
+    suscripcionesActivas: activeSubscriptions,
+    adopcionesActivas: activeAdoptions
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      totalDonated: totalDonations.total,
+      donationsCount: totalDonations.count,
+      activeSubscriptions,
+      activeAdoptions
+    }
   });
 });
