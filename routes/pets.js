@@ -12,7 +12,8 @@ const {
   toggleLikePet,
   createComment,
   getComments,
-  incrementShare 
+  incrementShare,
+  getLikedPets
 } = require('../controllers/petController');
 
 // Importar middlewares
@@ -46,6 +47,7 @@ router.post('/test/simple', (req, res) => {
 }); 
 
 router.get('/popular', getPopularPets); // GET /api/v1/pets/popular - Mascotas populares  
+router.get('/liked', protect, getLikedPets);
 router.get('/:id/comments', getComments); // GET /api/v1/pets/:id/comments - Obtener comentarios
 router.post('/:id/share', incrementShare); // POST /api/v1/pets/:id/share - Incrementar shares
 

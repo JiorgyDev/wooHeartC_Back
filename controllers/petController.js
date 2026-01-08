@@ -400,11 +400,23 @@ const toggleLikePet = async (req, res) => {
       pet.likes.splice(likeIndex, 1);
       isLiked = false;
       console.log('❤️ Like removido por usuario:', req.user.name);
+
+      // ✅ NUEVO: Quitar de favorites del usuario
+      await User.findByIdAndUpdate(
+        userId,
+        { $pull: { favorites: pet._id } }
+      );
     } else {
       // No tiene like, agregarlo
       pet.likes.push({ userId, createdAt: new Date() });
       isLiked = true;
       console.log('💖 Like agregado por usuario:', req.user.name);
+
+      // ✅ NUEVO: Agregar a favorites del usuario (sin duplicados)
+      await User.findByIdAndUpdate(
+        userId,
+        { $addToSet: { favorites: pet._id } }
+      );
     }
 
     await pet.save();
@@ -564,6 +576,56 @@ const incrementShare = async (req, res) => {
     });
   }
 };
+// @desc    Obtener mascotas a las que el usuario ha dado like
+// @route   GET /api/v1/pets/liked
+// @access  Private
+const getLikedPets = async (req, res) => {
+  try {
+    console.log('💖 Obteniendo mascotas con like del usuario:', req.user.name);
+
+    const userId = req.user._id;
+
+    // MÉTODO 1: Buscar en Pet.likes (más eficiente)
+    // Encuentra todas las mascotas donde el userId está en el array de likes
+    const likedPets = await Pet.find({
+      'likes.userId': userId
+    })
+      .sort({ 'likes.createdAt': -1 }) // Ordenar por fecha de like (más reciente primero)
+      .lean(); // Convertir a objeto plano para mejor performance
+
+    console.log(`📊 Se encontraron ${likedPets.length} mascotas con like`);
+
+    // Agregar isLiked = true a todas (obviamente, ya que las buscamos por like)
+    const petsWithLikes = likedPets.map(pet => {
+      // Calcular contadores usando los arrays
+      const likesCount = pet.likes ? pet.likes.length : 0;
+      const commentsCount = pet.comments ? pet.comments.length : 0;
+
+      return {
+        ...pet,
+        isLiked: true, // Siempre true porque las filtramos por like
+        likesCount,
+        commentsCount
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        pets: petsWithLikes,
+        total: petsWithLikes.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error obteniendo mascotas con like:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener mascotas con like',
+      error: error.message
+    });
+  }
+};
 
 // ============================================
 // ACTUALIZAR EL module.exports AL FINAL
@@ -581,5 +643,6 @@ module.exports = {
   // searchPets,
   createComment,      // ✅ NUEVO
   getComments,        // ✅ NUEVO
-  incrementShare      // ✅ NUEVO
+  incrementShare, 
+  getLikedPets     // ✅ NUEVO
 };

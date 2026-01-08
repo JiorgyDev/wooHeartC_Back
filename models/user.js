@@ -203,6 +203,7 @@ userSchema.index({ email: 1 });
 userSchema.index({ location: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ 'stats.totalPosts': -1 });
+userSchema.index({ favorites: 1 }); 
 
 // MIDDLEWARE ÚNICO: Migración de roles Y hasheo de password
 userSchema.pre('save', async function(next) {
