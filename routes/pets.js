@@ -17,7 +17,7 @@ const {
 } = require('../controllers/petController');
 
 // Importar middlewares
-const { protect, shelterCoordinatorOrAdmin, authenticatedUsers } = require('../controllers/authController');
+const { protect, shelterCoordinatorOrAdmin, authenticatedUsers, optionalAuth } = require('../controllers/authController');
 const { uploadPetImages, handleUploadError, processUploadedImages } = require('../middleware/upload');
 
 // ===== RUTAS PÚBLICAS =====
@@ -34,8 +34,10 @@ router.get('/test/upload', (req, res) => {
 });
 
 // IMPORTANTE: Las rutas específicas DEBEN ir ANTES que las rutas con parámetros (:id)
-router.get('/', getPets); // GET /api/v1/pets - Feed principal
-
+// ===== RUTAS PÚBLICAS =====
+// IMPORTANTE: Esta ruta DEBE ser pública PERO con autenticación OPCIONAL
+// ===== RUTAS PÚBLICAS =====
+router.get('/', optionalAuth, getPets); // GET /api/v1/pets - Feed principal (con auth opcional) 
 // RUTA DE PRUEBA SIN IMAGEN
 router.post('/test/simple', (req, res) => {
   console.log('📋 Test simple - Body:', req.body);

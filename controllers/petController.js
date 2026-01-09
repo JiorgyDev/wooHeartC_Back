@@ -9,6 +9,10 @@ const { cloudinary } = require('../config/cloudinary');
 // ✅ DESPUÉS (CORRECTO):
 const getPets = async (req, res) => {
   try {
+    // ✅ LOG 1: Verificar si hay usuario autenticado
+    console.log('🔐 Usuario autenticado:', req.user ? req.user.name : 'NINGUNO');
+    console.log('🔐 User ID:', req.user ? req.user._id : 'NINGUNO');
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -26,7 +30,6 @@ const getPets = async (req, res) => {
 
     console.log('📋 Obteniendo mascotas con filtros:', filters);
     
-    // ✅ CAMBIO 1: NO usar .lean() para mantener virtuals
     const pets = await Pet.find(filters)
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -35,20 +38,30 @@ const getPets = async (req, res) => {
     const totalPets = await Pet.countDocuments(filters);
     console.log(`📊 Se encontraron ${pets.length} mascotas, total: ${totalPets}`);
 
-    // ✅ CAMBIO 2: Convertir a JSON y calcular isLiked correctamente
     const petsWithLikes = pets.map(pet => {
-      const petObj = pet.toJSON(); // Incluye los virtuals (likesCount, commentsCount)
+      const petObj = pet.toJSON();
       
-      // Calcular isLiked basado en el usuario autenticado
+      // ✅ LOG 2: Debug por cada mascota
       if (req.user) {
-        petObj.isLiked = pet.likes.some(like => 
-          like.userId.toString() === req.user._id.toString()
-        );
+        const hasLike = pet.likes.some(like => {
+          const isMatch = like.userId.toString() === req.user._id.toString();
+          if (isMatch) {
+            console.log(`   ✅ ${pet.name} - Usuario SÍ tiene like`);
+          }
+          return isMatch;
+        });
+        
+        petObj.isLiked = hasLike;
+        
+        console.log(`   ${pet.name}:`);
+        console.log(`      - Total likes: ${pet.likes.length}`);
+        console.log(`      - isLiked: ${hasLike}`);
+        console.log(`      - User IDs con like:`, pet.likes.map(l => l.userId.toString()));
       } else {
+        // ✅ LOG 3: Usuario no autenticado
+        console.log(`   ⚠️ ${pet.name} - SIN USUARIO AUTENTICADO, isLiked = false`);
         petObj.isLiked = false;
       }
-
-      console.log(`   ${pet.name} - Likes: ${petObj.likesCount}, isLiked: ${petObj.isLiked}`);
       
       return petObj;
     });
@@ -68,7 +81,7 @@ const getPets = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error getting pets:', error);
+    console.error('❌ Error getting pets:', error);
     res.status(500).json({
       success: false,
       message: 'Error al obtener las mascotas',

@@ -527,3 +527,49 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
     }
   });
 });
+// ============================================
+// MIDDLEWARE DE AUTENTICACIÓN OPCIONAL
+// ============================================
+exports.optionalAuth = async (req, res, next) => {
+  try {
+    let token;
+    
+    // Intentar obtener token del header
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    // Si no hay token, continuar sin usuario
+    if (!token) {
+      console.log('⚠️ No hay token - continuando sin autenticación');
+      req.user = null;
+      return next();
+    }
+
+    // Si hay token, intentar verificarlo
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const currentUser = await User.findById(decoded.id);
+      
+      if (!currentUser) {
+        console.log('⚠️ Token válido pero usuario no existe');
+        req.user = null;
+        return next();
+      }
+
+      // Usuario autenticado correctamente
+      console.log('✅ Usuario autenticado:', currentUser.name);
+      req.user = currentUser;
+      next();
+    } catch (error) {
+      // Token inválido o expirado - continuar sin usuario
+      console.log('⚠️ Token inválido - continuando sin autenticación');
+      req.user = null;
+      next();
+    }
+  } catch (error) {
+    console.error('Error en optionalAuth:', error);
+    req.user = null;
+    next();
+  }
+};
