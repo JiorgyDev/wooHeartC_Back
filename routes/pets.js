@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
-// Importar controladores
+// ============================================
+// IMPORTAR CONTROLADORES
+// ============================================
 const {
   getPets,
   getPopularPets,
@@ -13,14 +15,20 @@ const {
   createComment,
   getComments,
   incrementShare,
-  getLikedPets
+  getLikedPets,
+  getAdoptedPets     // ✅ AGREGADO - Nueva función
 } = require('../controllers/petController');
 
-// Importar middlewares
+// ============================================
+// IMPORTAR MIDDLEWARES
+// ============================================
 const { protect, shelterCoordinatorOrAdmin, authenticatedUsers, optionalAuth } = require('../controllers/authController');
 const { uploadPetImages, handleUploadError, processUploadedImages } = require('../middleware/upload');
 
-// ===== RUTAS PÚBLICAS =====
+// ============================================
+// RUTAS PÚBLICAS
+// ============================================
+
 // RUTA DE PRUEBA
 router.get('/test/upload', (req, res) => {
   res.json({
@@ -33,11 +41,6 @@ router.get('/test/upload', (req, res) => {
   });
 });
 
-// IMPORTANTE: Las rutas específicas DEBEN ir ANTES que las rutas con parámetros (:id)
-// ===== RUTAS PÚBLICAS =====
-// IMPORTANTE: Esta ruta DEBE ser pública PERO con autenticación OPCIONAL
-// ===== RUTAS PÚBLICAS =====
-router.get('/', optionalAuth, getPets); // GET /api/v1/pets - Feed principal (con auth opcional) 
 // RUTA DE PRUEBA SIN IMAGEN
 router.post('/test/simple', (req, res) => {
   console.log('📋 Test simple - Body:', req.body);
@@ -46,18 +49,30 @@ router.post('/test/simple', (req, res) => {
     message: 'Test sin imagen funcionando',
     received: req.body
   });
-}); 
+});
 
-router.get('/popular', getPopularPets); // GET /api/v1/pets/popular - Mascotas populares  
-router.get('/liked', protect, getLikedPets);
-router.get('/:id/comments', getComments); // GET /api/v1/pets/:id/comments - Obtener comentarios
-router.post('/:id/share', incrementShare); // POST /api/v1/pets/:id/share - Incrementar shares
+// ============================================
+// RUTAS ESPECÍFICAS (ANTES DE /:id)
+// ⚠️ IMPORTANTE: Estas rutas DEBEN ir ANTES de /:id
+// ============================================
+router.get('/', optionalAuth, getPets);           // GET /api/v1/pets - Feed principal (con auth opcional)
+router.get('/popular', getPopularPets);           // GET /api/v1/pets/popular - Mascotas populares
+router.get('/liked', protect, getLikedPets);      // GET /api/v1/pets/liked - Mascotas con like
+router.get('/adopted', protect, getAdoptedPets);  // ✅ AGREGADO - GET /api/v1/pets/adopted - Mascotas adoptadas
 
-// Esta ruta DEBE ir después de todas las rutas específicas
-router.get('/:id', getPetById); // GET /api/v1/pets/:id - Mascota específica
+// ============================================
+// RUTAS DE INTERACCIÓN CON PARÁMETRO :id
+// ============================================
+router.get('/:id/comments', getComments);         // GET /api/v1/pets/:id/comments - Obtener comentarios
+router.post('/:id/share', incrementShare);        // POST /api/v1/pets/:id/share - Incrementar shares
 
-// ===== RUTAS PROTEGIDAS =====
-router.use(protect); // Proteger rutas que requieren autenticación
+// ⚠️ Esta ruta DEBE ir DESPUÉS de todas las rutas específicas
+router.get('/:id', getPetById);                   // GET /api/v1/pets/:id - Mascota específica
+
+// ============================================
+// RUTAS PROTEGIDAS (requieren autenticación)
+// ============================================
+router.use(protect); // Middleware: todas las rutas siguientes requieren autenticación
 
 // Middleware de debugging
 router.use((req, res, next) => {
@@ -67,7 +82,9 @@ router.use((req, res, next) => {
   next();
 });
 
+// ============================================
 // RUTAS CON UPLOAD DE IMÁGENES
+// ============================================
 router.post('/', uploadPetImages.array('images', 5), handleUploadError, processUploadedImages, createPet);
 
 // RUTA: Para actualizaciones simples SIN imágenes (como cambiar adoptionStatus)
@@ -78,8 +95,10 @@ router.put('/:id', uploadPetImages.array('images', 5), handleUploadError, proces
 
 router.delete('/:id', deletePet); // DELETE /api/v1/pets/:id - Eliminar mascota
 
-// Rutas de interacción
-router.post('/:id/like', toggleLikePet); // POST /api/v1/pets/:id/like - Toggle like
-router.post('/:id/comment', createComment); // POST /api/v1/pets/:id/comment - Crear comentario
+// ============================================
+// RUTAS DE INTERACCIÓN (PROTEGIDAS)
+// ============================================
+router.post('/:id/like', toggleLikePet);          // POST /api/v1/pets/:id/like - Toggle like
+router.post('/:id/comment', createComment);       // POST /api/v1/pets/:id/comment - Crear comentario
 
 module.exports = router;

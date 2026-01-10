@@ -639,6 +639,145 @@ const getLikedPets = async (req, res) => {
     });
   }
 };
+// @desc    Obtener mascotas que el usuario ha adoptado (con pago confirmado)
+// @route   GET /api/v1/pets/adopted
+// @access  Private
+const getAdoptedPets = async (req, res) => {
+  try {
+    console.log('🐕‍🦺 Obteniendo mascotas adoptadas del usuario:', req.user.name);
+
+    const userId = req.user._id;
+
+    // ============================================
+    // PASO 1: Obtener el usuario con sus adopciones
+    // ============================================
+    const User = require('../models/user');
+    const user = await User.findById(userId)
+      .select('adoptions') // Solo traer el campo adoptions
+      .lean(); // Convertir a objeto plano para mejor performance
+
+    if (!user || !user.adoptions || user.adoptions.length === 0) {
+      console.log('📊 El usuario no tiene adopciones');
+      return res.status(200).json({
+        success: true,
+        data: {
+          pets: [],
+          total: 0
+        }
+      });
+    }
+
+    // ============================================
+    // PASO 2: Filtrar solo adopciones ACTIVAS
+    // ============================================
+    const activeAdoptions = user.adoptions.filter(
+      adoption => adoption.status === 'active'
+    );
+
+    console.log(`📊 Adopciones activas encontradas: ${activeAdoptions.length}`);
+
+    if (activeAdoptions.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          pets: [],
+          total: 0
+        }
+      });
+    }
+
+    // ============================================
+    // PASO 3: Extraer los IDs de las mascotas
+    // ============================================
+    const petIds = activeAdoptions
+      .map(adoption => adoption.petId)
+      .filter(petId => petId !== null && petId !== undefined); // Filtrar nulls
+
+    console.log(`🔍 IDs de mascotas a buscar: ${petIds.length}`);
+
+    if (petIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          pets: [],
+          total: 0
+        }
+      });
+    }
+
+    // ============================================
+    // PASO 4: Buscar las mascotas en la BD
+    // ============================================
+    const adoptedPets = await Pet.find({
+      _id: { $in: petIds }
+    }).lean(); // Convertir a objeto plano
+
+    console.log(`📊 Mascotas encontradas en BD: ${adoptedPets.length}`);
+
+    // ============================================
+    // PASO 5: Enriquecer datos con info de adopción
+    // ============================================
+    const petsWithAdoptionInfo = adoptedPets.map(pet => {
+      // Buscar la adopción correspondiente a esta mascota
+      const adoption = activeAdoptions.find(
+        adop => adop.petId && adop.petId.toString() === pet._id.toString()
+      );
+
+      // Calcular contadores usando los arrays
+      const likesCount = pet.likes ? pet.likes.length : 0;
+      const commentsCount = pet.comments ? pet.comments.length : 0;
+
+      // Verificar si el usuario le dio like a esta mascota
+      const isLiked = pet.likes ? pet.likes.some(
+        like => like.userId.toString() === userId.toString()
+      ) : false;
+
+      return {
+        ...pet,
+        // Agregar información de la adopción
+        adoptionInfo: adoption ? {
+          plan: adoption.plan, // 'guardian', 'protector', 'angel'
+          amount: adoption.amount, // 5, 10, 20
+          startDate: adoption.startDate,
+          endDate: adoption.endDate,
+          status: adoption.status,
+          stripeSubscriptionId: adoption.stripeSubscriptionId
+        } : null,
+        // Agregar contadores
+        likesCount,
+        commentsCount,
+        isLiked
+      };
+    });
+
+    // ============================================
+    // PASO 6: Ordenar por fecha de adopción (más reciente primero)
+    // ============================================
+    petsWithAdoptionInfo.sort((a, b) => {
+      const dateA = a.adoptionInfo?.startDate || new Date(0);
+      const dateB = b.adoptionInfo?.startDate || new Date(0);
+      return new Date(dateB) - new Date(dateA);
+    });
+
+    console.log(`✅ Retornando ${petsWithAdoptionInfo.length} mascotas adoptadas`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        pets: petsWithAdoptionInfo,
+        total: petsWithAdoptionInfo.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error obteniendo mascotas adoptadas:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener mascotas adoptadas',
+      error: error.message
+    });
+  }
+};
 
 // ============================================
 // ACTUALIZAR EL module.exports AL FINAL
@@ -657,5 +796,6 @@ module.exports = {
   createComment,      // ✅ NUEVO
   getComments,        // ✅ NUEVO
   incrementShare, 
-  getLikedPets     // ✅ NUEVO
+  getLikedPets,
+  getAdoptedPets       // ✅ NUEVO
 };
