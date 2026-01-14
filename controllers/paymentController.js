@@ -107,9 +107,9 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
     console.log('✨ Nuevo cliente creado:', customer.id);
   }
 
-  // ✅ SOLUCIÓN: Crear Payment Intent MANUAL para el primer pago
+  // Crear Payment Intent para el primer pago
   const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount * 100, // Convertir a centavos
+    amount: amount * 100,
     currency: 'usd',
     customer: customer.id,
     description: `Suscripción WooHeart - Plan ${amount}/mes`,
@@ -122,13 +122,12 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
     automatic_payment_methods: {
       enabled: true,
     },
-    setup_future_usage: 'off_session', // Guardar método de pago para futuros cobros
+    setup_future_usage: 'off_session',
   });
 
   console.log('💰 Payment Intent creado:', paymentIntent.id);
-  console.log('✅ Client Secret:', paymentIntent.client_secret.substring(0, 20) + '...');
 
-  // Crear la suscripción en estado "incomplete" (se activará después del primer pago)
+  // Crear la suscripción
   const subscription = await stripe.subscriptions.create({
     customer: customer.id,
     items: [{ price: priceId }],
@@ -144,7 +143,7 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
     },
   });
 
-  console.log('🎉 Suscripción creada:', subscription.id, '- Status:', subscription.status);
+  console.log('🎉 Suscripción creada:', subscription.id);
 
   res.status(200).json({
     status: 'success',
@@ -196,9 +195,9 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
     console.log('✨ Nuevo cliente creado:', customer.id);
   }
 
-  // ✅ SOLUCIÓN: Crear Payment Intent MANUAL para el primer pago
+  // Crear Payment Intent
   const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount * 100, // Convertir a centavos
+    amount: amount * 100,
     currency: 'usd',
     customer: customer.id,
     description: `Adopción WooHeart - Plan ${amount}/mes${petId ? ` - Pet: ${petId}` : ''}`,
@@ -212,13 +211,12 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
     automatic_payment_methods: {
       enabled: true,
     },
-    setup_future_usage: 'off_session', // Guardar método de pago para futuros cobros
+    setup_future_usage: 'off_session',
   });
 
   console.log('💰 Payment Intent creado:', paymentIntent.id);
-  console.log('✅ Client Secret:', paymentIntent.client_secret.substring(0, 20) + '...');
 
-  // Crear la suscripción en estado "incomplete" (se activará después del primer pago)
+  // Crear la suscripción
   const subscription = await stripe.subscriptions.create({
     customer: customer.id,
     items: [{ price: priceId }],
@@ -235,7 +233,7 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
     },
   });
 
-  console.log('🎉 Suscripción creada:', subscription.id, '- Status:', subscription.status);
+  console.log('🎉 Suscripción creada:', subscription.id);
 
   res.status(200).json({
     status: 'success',
@@ -249,7 +247,7 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
 });
 
 // ============================================
-// WEBHOOK DE STRIPE - VERSIÓN MEJORADA
+// ✅ WEBHOOK DE STRIPE - VERSIÓN MEJORADA
 // ============================================
 exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
   const stripe = getStripe();
@@ -259,6 +257,7 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
   const User = require('../models/user');
   const Payment = require('../models/payment');
   const Subscription = require('../models/subscription');
+  const Pet = require('../models/pet'); // ✅ NUEVO
 
   let event;
 
@@ -311,6 +310,8 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
             }
           });
 
+          // ✅ NUEVO: Incrementar contador general de apoyo
+          // (Puedes usar esto para estadísticas globales)
           console.log('💝 Donación guardada para usuario:', metadata.userId);
         } catch (error) {
           console.error('❌ Error guardando donación:', error);
@@ -330,6 +331,7 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
       const userId = subMetadata.userId;
       const type = subMetadata.type; // 'suscripcion' o 'adopcion'
       const plan = subMetadata.plan;
+      const petId = subMetadata.petId; // Solo para adopciones
 
       if (!userId) {
         console.error('❌ userId no encontrado en metadata');
@@ -337,7 +339,9 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
       }
 
       try {
-        // Guardar/actualizar en modelo Subscription
+        // ============================================
+        // 1. Guardar/actualizar en modelo Subscription
+        // ============================================
         await Subscription.findOneAndUpdate(
           { stripeSubscriptionId: subscription.id },
           {
@@ -352,12 +356,15 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
             currentPeriodStart: new Date(subscription.current_period_start * 1000),
             currentPeriodEnd: new Date(subscription.current_period_end * 1000),
             cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            pet: petId || null, // ✅ NUEVO
             metadata: subMetadata
           },
           { upsert: true, new: true }
         );
 
-        // Actualizar usuario según tipo
+        // ============================================
+        // 2. Actualizar usuario según tipo
+        // ============================================
         if (type === 'suscripcion') {
           // Suscripción general
           await User.findByIdAndUpdate(userId, {
@@ -371,15 +378,44 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
             }
           });
           console.log('✅ Suscripción general guardada');
+
         } else if (type === 'adopcion') {
-          // Adopción de mascota
-          const petId = subMetadata.petId;
+          // ============================================
+          // ✅ ADOPCIÓN DE MASCOTA - CAMBIOS CRÍTICOS
+          // ============================================
           const planName = plan === '5' ? 'guardian' : plan === '10' ? 'protector' : 'angel';
 
+          // ✅ PASO 1: Obtener datos de la mascota
+          let petName = null;
+          let petImage = null;
+
+          if (petId) {
+            try {
+              const pet = await Pet.findById(petId).select('name imageUrls imageUrl');
+              if (pet) {
+                petName = pet.name;
+                petImage = pet.imageUrls && pet.imageUrls.length > 0 
+                  ? pet.imageUrls[0] 
+                  : pet.imageUrl;
+
+                // ✅ PASO 2: Incrementar contador de adopción en Pet
+                await Pet.findByIdAndUpdate(petId, {
+                  $inc: { adopcion: 1 }
+                });
+                console.log(`✅ Contador de adopción incrementado para ${pet.name}`);
+              }
+            } catch (petError) {
+              console.error('❌ Error obteniendo mascota:', petError);
+            }
+          }
+
+          // ✅ PASO 3: Guardar adopción con datos completos
           await User.findByIdAndUpdate(userId, {
             $push: {
               adoptions: {
                 petId: petId || null,
+                petName: petName, // ✅ NUEVO
+                petImage: petImage, // ✅ NUEVO
                 plan: planName,
                 amount: subscription.items.data[0].price.unit_amount / 100,
                 startDate: new Date(subscription.current_period_start * 1000),
@@ -389,7 +425,13 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
               }
             }
           });
-          console.log('✅ Adopción guardada');
+
+          console.log(`✅ Adopción guardada con datos completos:`, {
+            petId,
+            petName,
+            petImage: petImage ? 'Sí' : 'No',
+            plan: planName
+          });
         }
 
         console.log('✅ Suscripción guardada para usuario:', userId);
@@ -476,7 +518,6 @@ exports.getMyPayments = catchAsync(async (req, res, next) => {
 exports.getMySubscriptions = catchAsync(async (req, res, next) => {
   const stripe = getStripe();
   
-  // Buscar customer del usuario
   const customers = await stripe.customers.list({
     email: req.user.email,
     limit: 1,
@@ -523,8 +564,9 @@ exports.cancelSubscription = catchAsync(async (req, res, next) => {
     },
   });
 });
+
 // ============================================
-// ✅ NUEVA FUNCIÓN: OBTENER HISTORIAL COMPLETO
+// ✅ OBTENER HISTORIAL COMPLETO
 // ============================================
 exports.getUserHistory = catchAsync(async (req, res, next) => {
   const User = require('../models/user');
@@ -541,7 +583,7 @@ exports.getUserHistory = catchAsync(async (req, res, next) => {
     .populate('adoptions.petId', 'name imageUrls')
     .lean();
 
-  // 2. Obtener pagos únicos (donaciones)
+  // 2. Obtener pagos únicos
   const payments = await Payment.find({
     user: userId,
     status: 'succeeded'
@@ -577,7 +619,7 @@ exports.getUserHistory = catchAsync(async (req, res, next) => {
 });
 
 // ============================================
-// ✅ NUEVA FUNCIÓN: OBTENER ESTADÍSTICAS
+// ✅ OBTENER ESTADÍSTICAS
 // ============================================
 exports.getUserStats = catchAsync(async (req, res, next) => {
   const Payment = require('../models/payment');
