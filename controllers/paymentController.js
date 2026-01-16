@@ -353,8 +353,12 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
             stripePriceId: subscription.items.data[0].price.id,
             amount: subscription.items.data[0].price.unit_amount / 100,
             currency: subscription.currency,
-            currentPeriodStart: new Date(subscription.current_period_start * 1000),
-            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+            currentPeriodStart: subscription.current_period_start 
+              ? new Date(subscription.current_period_start * 1000) 
+              : new Date(),
+            currentPeriodEnd: subscription.current_period_end 
+              ? new Date(subscription.current_period_end * 1000) 
+              : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             cancelAtPeriodEnd: subscription.cancel_at_period_end,
             pet: petId || null, // ✅ NUEVO
             metadata: subMetadata
@@ -371,8 +375,12 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
             generalSubscription: {
               plan: plan,
               amount: subscription.items.data[0].price.unit_amount / 100,
-              startDate: new Date(subscription.current_period_start * 1000),
-              endDate: new Date(subscription.current_period_end * 1000),
+              startDate: subscription.current_period_start 
+                ? new Date(subscription.current_period_start * 1000) 
+                : new Date(),
+              endDate: subscription.current_period_end 
+                ? new Date(subscription.current_period_end * 1000) 
+                : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
               status: subscription.status === 'active' ? 'active' : 'cancelled',
               stripeSubscriptionId: subscription.id
             }
@@ -418,8 +426,12 @@ exports.handleStripeWebhook = catchAsync(async (req, res, next) => {
                 petImage: petImage, // ✅ NUEVO
                 plan: planName,
                 amount: subscription.items.data[0].price.unit_amount / 100,
-                startDate: new Date(subscription.current_period_start * 1000),
-                endDate: new Date(subscription.current_period_end * 1000),
+                startDate: subscription.current_period_start 
+                  ? new Date(subscription.current_period_start * 1000) 
+                  : new Date(),
+                endDate: subscription.current_period_end 
+                  ? new Date(subscription.current_period_end * 1000) 
+                  : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                 status: subscription.status === 'active' ? 'active' : 'cancelled',
                 stripeSubscriptionId: subscription.id
               }
