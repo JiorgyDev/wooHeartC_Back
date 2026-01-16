@@ -675,6 +675,13 @@ const getAdoptedPets = async (req, res) => {
     );
 
     console.log(`📊 Adopciones activas encontradas: ${activeAdoptions.length}`);
+    console.log('🔍 Active adoptions COMPLETAS:', JSON.stringify(activeAdoptions, null, 2));
+console.log('🔍 Pet IDs ANTES de filtrar:', activeAdoptions.map(a => ({
+  petId: a.petId,
+  type: typeof a.petId,
+  isNull: a.petId === null,
+  isUndefined: a.petId === undefined
+})));
 
     if (activeAdoptions.length === 0) {
       return res.status(200).json({
@@ -694,6 +701,7 @@ const getAdoptedPets = async (req, res) => {
       .filter(petId => petId !== null && petId !== undefined); // Filtrar nulls
 
     console.log(`🔍 IDs de mascotas a buscar: ${petIds.length}`);
+    console.log('🔍 Pet IDs DESPUÉS de filtrar:', petIds);
 
     if (petIds.length === 0) {
       return res.status(200).json({
