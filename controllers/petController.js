@@ -796,6 +796,93 @@ console.log('🔍 Pet IDs ANTES de filtrar:', activeAdoptions.map(a => ({
     });
   }
 };
+// @desc    Obtener mascotas que el usuario ha apoyado (últimas 10 del refugio)
+// @route   GET /api/v1/pets/supported
+// @access  Private
+const getSupportedPets = async (req, res) => {
+  try {
+    console.log('⭐ Obteniendo mascotas apoyadas del usuario:', req.user.name);
+
+    const userId = req.user._id;
+
+    // ============================================
+    // PASO 1: Verificar si el usuario tiene suscripción general activa
+    // ============================================
+    const User = require('../models/user');
+    const user = await User.findById(userId)
+      .select('generalSubscription')
+      .lean();
+
+    // Si no tiene suscripción general, retornar vacío
+    if (!user || !user.generalSubscription || user.generalSubscription.status !== 'active') {
+      console.log('📊 El usuario no tiene suscripción general activa');
+      return res.status(200).json({
+        success: true,
+        data: {
+          pets: [],
+          total: 0,
+          message: 'Necesitas una suscripción activa para ver las mascotas que apoyas'
+        }
+      });
+    }
+
+    // ============================================
+    // PASO 2: Obtener las últimas 10 mascotas del refugio
+    // ============================================
+    const supportedPets = await Pet.find({
+      adoptionStatus: 'available'
+    })
+      .sort({ createdAt: -1 }) // Más recientes primero
+      .limit(10)
+      .lean();
+
+    console.log(`📊 Mascotas apoyadas encontradas: ${supportedPets.length}`);
+
+    // ============================================
+    // PASO 3: Agregar información adicional
+    // ============================================
+    const petsWithInfo = supportedPets.map(pet => {
+      const likesCount = pet.likes ? pet.likes.length : 0;
+      const commentsCount = pet.comments ? pet.comments.length : 0;
+
+      // Verificar si el usuario le dio like
+      const isLiked = pet.likes ? pet.likes.some(
+        like => like.userId.toString() === userId.toString()
+      ) : false;
+
+      return {
+        ...pet,
+        likesCount,
+        commentsCount,
+        isLiked,
+        // Agregar info de que esta mascota es apoyada por el usuario
+        supportInfo: {
+          plan: user.generalSubscription.plan,
+          amount: user.generalSubscription.amount,
+          startDate: user.generalSubscription.startDate
+        }
+      };
+    });
+
+    console.log(`✅ Retornando ${petsWithInfo.length} mascotas apoyadas`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        pets: petsWithInfo,
+        total: petsWithInfo.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error obteniendo mascotas apoyadas:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener mascotas apoyadas',
+      error: error.message
+    });
+  }
+};
 
 // ============================================
 // ACTUALIZAR EL module.exports AL FINAL
@@ -815,5 +902,6 @@ module.exports = {
   getComments,        // ✅ NUEVO
   incrementShare, 
   getLikedPets,
-  getAdoptedPets       // ✅ NUEVO
+  getAdoptedPets,      // ✅ NUEVO
+  getSupportedPets 
 };
