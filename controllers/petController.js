@@ -670,9 +670,19 @@ const getAdoptedPets = async (req, res) => {
     // ============================================
     // PASO 2: Filtrar solo adopciones ACTIVAS
     // ============================================
-    const activeAdoptions = user.adoptions.filter(
-      adoption => adoption.status === 'active'
-    );
+    // const activeAdoptions = user.adoptions.filter(
+    //   adoption => adoption.status === 'active'
+    // );
+
+    // REEMPLAZAR POR:
+const activeAdoptions = user.adoptions; // ✅ Traer TODAS sin filtrar
+
+console.log(`📊 Adopciones TOTALES: ${activeAdoptions.length}`);
+console.log('🔍 Status de cada adopción:', activeAdoptions.map(a => ({
+  petId: a.petId,
+  status: a.status,
+  plan: a.plan
+})));
 
     console.log(`📊 Adopciones activas encontradas: ${activeAdoptions.length}`);
     console.log('🔍 Active adoptions COMPLETAS:', JSON.stringify(activeAdoptions, null, 2));
