@@ -69,13 +69,15 @@ exports.createApoyoPayment = catchAsync(async (req, res, next) => {
 // ============================================
 // SUSCRIPCIÓN - PAGO MENSUAL
 // ============================================
+// ============================================
+// SUSCRIPCIÓN - PAGO MENSUAL (CORRECTED)
+// ============================================
 exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
   const stripe = getStripe();
   const { plan } = req.body;
 
   console.log('📦 Request recibido:', { plan, userId: req.user._id });
 
-  // Validar plan
   if (!plan || !PRICE_IDS.suscripcion[plan]) {
     return next(
       new AppError('Plan inválido. Opciones: 5, 10, 60, 150', 400)
@@ -83,10 +85,9 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
   }
 
   const priceId = PRICE_IDS.suscripcion[plan];
-  const amount = parseInt(plan);
-  console.log('💳 Price ID seleccionado:', priceId, '- Monto:', amount);
+  console.log('💳 Price ID seleccionado:', priceId);
 
-  // Buscar o crear cliente en Stripe
+  // Buscar o crear cliente
   let customer;
   const existingCustomers = await stripe.customers.list({
     email: req.user.email,
@@ -95,69 +96,53 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
 
   if (existingCustomers.data.length > 0) {
     customer = existingCustomers.data[0];
-    console.log('✅ Cliente existente encontrado:', customer.id);
+    console.log('✅ Cliente existente:', customer.id);
   } else {
     customer = await stripe.customers.create({
       email: req.user.email,
       name: req.user.name,
-      metadata: {
-        userId: req.user._id.toString(),
-      },
+      metadata: { userId: req.user._id.toString() },
     });
-    console.log('✨ Nuevo cliente creado:', customer.id);
+    console.log('✨ Nuevo cliente:', customer.id);
   }
 
-  // Crear Payment Intent para el primer pago
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount * 100,
-    currency: 'usd',
-    customer: customer.id,
-    description: `Suscripción WooHeart - Plan ${amount}/mes`,
-    metadata: {
-      userId: req.user._id.toString(),
-      type: 'suscripcion',
-      plan,
-      priceId: priceId,
-    },
-    automatic_payment_methods: {
-      enabled: true,
-    },
-    setup_future_usage: 'off_session',
-  });
+  // ❌ ELIMINAR ESTO - No crear PaymentIntent manual
+  // const paymentIntent = await stripe.paymentIntents.create({...});
 
-  console.log('💰 Payment Intent creado:', paymentIntent.id);
-
-  // Crear la suscripción
+  // ✅ SOLO crear la subscription
   const subscription = await stripe.subscriptions.create({
     customer: customer.id,
     items: [{ price: priceId }],
     payment_behavior: 'default_incomplete',
-    payment_settings: {
+    payment_settings: { 
       save_default_payment_method: 'on_subscription',
+      payment_method_types: ['card']
     },
+    expand: ['latest_invoice.payment_intent'],
     metadata: {
       userId: req.user._id.toString(),
       type: 'suscripcion',
       plan,
-      initialPaymentIntentId: paymentIntent.id,
     },
   });
 
   console.log('🎉 Suscripción creada:', subscription.id);
 
+  // ✅ OBTENER el clientSecret de la invoice automática
+  const clientSecret = subscription.latest_invoice.payment_intent.client_secret;
+
   res.status(200).json({
     status: 'success',
     data: {
       subscriptionId: subscription.id,
-      clientSecret: paymentIntent.client_secret,
+      clientSecret: clientSecret,  // ✅ Este es el correcto
       customerId: customer.id,
-      paymentIntentId: paymentIntent.id,
     },
   });
 });
 
 // ============================================
-// ADOPCIÓN - PAGO MENSUAL
+// ADOPCIÓN - PAGO MENSUAL (CORRECTED)
 // ============================================
 exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
   const stripe = getStripe();
@@ -165,16 +150,14 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
 
   console.log('📦 Request recibido:', { plan, petId, userId: req.user._id });
 
-  // Validar plan
   if (!plan || !PRICE_IDS.adopcion[plan]) {
     return next(new AppError('Plan inválido. Opciones: 5, 10, 20', 400));
   }
 
   const priceId = PRICE_IDS.adopcion[plan];
-  const amount = parseInt(plan);
-  console.log('💳 Price ID seleccionado:', priceId, '- Monto:', amount);
+  console.log('💳 Price ID seleccionado:', priceId);
 
-  // Buscar o crear cliente en Stripe
+  // Buscar o crear cliente
   let customer;
   const existingCustomers = await stripe.customers.list({
     email: req.user.email,
@@ -183,69 +166,51 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
 
   if (existingCustomers.data.length > 0) {
     customer = existingCustomers.data[0];
-    console.log('✅ Cliente existente encontrado:', customer.id);
+    console.log('✅ Cliente existente:', customer.id);
   } else {
     customer = await stripe.customers.create({
       email: req.user.email,
       name: req.user.name,
-      metadata: {
-        userId: req.user._id.toString(),
-      },
+      metadata: { userId: req.user._id.toString() },
     });
-    console.log('✨ Nuevo cliente creado:', customer.id);
+    console.log('✨ Nuevo cliente:', customer.id);
   }
 
-  // Crear Payment Intent
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount * 100,
-    currency: 'usd',
-    customer: customer.id,
-    description: `Adopción WooHeart - Plan ${amount}/mes${petId ? ` - Pet: ${petId}` : ''}`,
-    metadata: {
-      userId: req.user._id.toString(),
-      type: 'adopcion',
-      plan,
-      priceId: priceId,
-      ...(petId && { petId }),
-    },
-    automatic_payment_methods: {
-      enabled: true,
-    },
-    setup_future_usage: 'off_session',
-  });
+  // ❌ ELIMINAR ESTO - No crear PaymentIntent manual
+  // const paymentIntent = await stripe.paymentIntents.create({...});
 
-  console.log('💰 Payment Intent creado:', paymentIntent.id);
-
-  // Crear la suscripción
+  // ✅ SOLO crear la subscription
   const subscription = await stripe.subscriptions.create({
     customer: customer.id,
     items: [{ price: priceId }],
     payment_behavior: 'default_incomplete',
-    payment_settings: {
+    payment_settings: { 
       save_default_payment_method: 'on_subscription',
+      payment_method_types: ['card']
     },
+    expand: ['latest_invoice.payment_intent'],
     metadata: {
       userId: req.user._id.toString(),
       type: 'adopcion',
       plan,
-      initialPaymentIntentId: paymentIntent.id,
       ...(petId && { petId }),
     },
   });
 
   console.log('🎉 Suscripción creada:', subscription.id);
 
+  // ✅ OBTENER el clientSecret de la invoice automática
+  const clientSecret = subscription.latest_invoice.payment_intent.client_secret;
+
   res.status(200).json({
     status: 'success',
     data: {
       subscriptionId: subscription.id,
-      clientSecret: paymentIntent.client_secret,
+      clientSecret: clientSecret,  // ✅ Este es el correcto
       customerId: customer.id,
-      paymentIntentId: paymentIntent.id,
     },
   });
 });
-
 // ============================================
 // ✅ WEBHOOK DE STRIPE - VERSIÓN MEJORADA
 // ============================================
