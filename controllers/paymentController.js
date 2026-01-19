@@ -196,6 +196,7 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
         metadata: { userId: req.user._id.toString() },
       });
       console.log('✨ Nuevo cliente:', customer.id);
+      //hola carajooo 
     }
 
     // ✅ Crear subscription SIN expand
