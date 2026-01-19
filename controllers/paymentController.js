@@ -200,6 +200,7 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
     amount: amount * 100,
     currency: 'usd',
     customer: customer.id,
+    //hola
     description: `Adopción WooHeart - Plan ${amount}/mes${petId ? ` - Pet: ${petId}` : ''}`,
     metadata: {
       userId: req.user._id.toString(),
