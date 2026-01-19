@@ -796,6 +796,7 @@ console.log('🔍 Pet IDs ANTES de filtrar:', activeAdoptions.map(a => ({
     });
   }
 };
+
 // @desc    Obtener mascotas que el usuario ha apoyado (últimas 10 del refugio)
 // @route   GET /api/v1/pets/supported
 // @access  Private
@@ -806,22 +807,30 @@ const getSupportedPets = async (req, res) => {
     const userId = req.user._id;
 
     // ============================================
-    // PASO 1: Verificar si el usuario tiene suscripción general activa
+    // PASO 1: Verificar pagos únicos (donaciones)
     // ============================================
-    const User = require('../models/user');
-    const user = await User.findById(userId)
-      .select('generalSubscription')
+    const Payment = require('../models/payment');
+    
+    const userDonations = await Payment.find({
+      user: userId,
+      type: 'apoyo',
+      status: 'succeeded'
+    })
+      .sort({ createdAt: -1 })
+      .limit(1)
       .lean();
 
-    // Si no tiene suscripción general, retornar vacío
-    if (!user || !user.generalSubscription || user.generalSubscription.status !== 'active') {
-      console.log('📊 El usuario no tiene suscripción general activa');
+    console.log(`📊 Donaciones encontradas: ${userDonations.length}`);
+
+    // Si NO tiene donaciones ni suscripción, retornar vacío
+    if (userDonations.length === 0) {
+      console.log('📊 El usuario no ha hecho donaciones');
       return res.status(200).json({
         success: true,
         data: {
           pets: [],
           total: 0,
-          message: 'Necesitas una suscripción activa para ver las mascotas que apoyas'
+          message: 'Realiza una donación para ver las mascotas que apoyas'
         }
       });
     }
@@ -832,7 +841,7 @@ const getSupportedPets = async (req, res) => {
     const supportedPets = await Pet.find({
       adoptionStatus: 'available'
     })
-      .sort({ createdAt: -1 }) // Más recientes primero
+      .sort({ createdAt: -1 })
       .limit(10)
       .lean();
 
@@ -845,7 +854,6 @@ const getSupportedPets = async (req, res) => {
       const likesCount = pet.likes ? pet.likes.length : 0;
       const commentsCount = pet.comments ? pet.comments.length : 0;
 
-      // Verificar si el usuario le dio like
       const isLiked = pet.likes ? pet.likes.some(
         like => like.userId.toString() === userId.toString()
       ) : false;
@@ -855,11 +863,10 @@ const getSupportedPets = async (req, res) => {
         likesCount,
         commentsCount,
         isLiked,
-        // Agregar info de que esta mascota es apoyada por el usuario
         supportInfo: {
-          plan: user.generalSubscription.plan,
-          amount: user.generalSubscription.amount,
-          startDate: user.generalSubscription.startDate
+          totalDonated: userDonations.reduce((sum, d) => sum + d.amount, 0),
+          lastDonation: userDonations[0].createdAt,
+          donationsCount: userDonations.length
         }
       };
     });
@@ -876,6 +883,7 @@ const getSupportedPets = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error obteniendo mascotas apoyadas:', error);
+    console.error('❌ Stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Error al obtener mascotas apoyadas',
