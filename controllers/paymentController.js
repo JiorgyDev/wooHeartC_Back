@@ -67,7 +67,7 @@ exports.createApoyoPayment = catchAsync(async (req, res, next) => {
 });
 
 // ============================================
-// SUSCRIPCIÓN - PAGO MENSUAL (FIXED)
+// SUSCRIPCIÓN - PAGO MENSUAL (DEFINITIVO)
 // ============================================
 exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
   const stripe = getStripe();
@@ -104,7 +104,7 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
       console.log('✨ Nuevo cliente:', customer.id);
     }
 
-    // ✅ CAMBIO CRÍTICO: Crear subscription con expand correcto
+    // ✅ Crear subscription SIN expand (lo haremos manual)
     const subscription = await stripe.subscriptions.create({
       customer: customer.id,
       items: [{ price: priceId }],
@@ -112,7 +112,6 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
       payment_settings: { 
         save_default_payment_method: 'on_subscription',
       },
-      expand: ['latest_invoice.payment_intent'], // ✅ Esto debe funcionar
       metadata: {
         userId: req.user._id.toString(),
         type: 'suscripcion',
@@ -121,23 +120,32 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
     });
 
     console.log('🎉 Suscripción creada:', subscription.id);
+    console.log('🔍 Latest invoice ID:', subscription.latest_invoice);
 
-    // ✅ ALTERNATIVA: Si expand no funciona, obtener la invoice manualmente
-    let clientSecret;
-    
-    if (subscription.latest_invoice?.payment_intent?.client_secret) {
-      clientSecret = subscription.latest_invoice.payment_intent.client_secret;
-      console.log('✅ Client secret desde expand');
-    } else {
-      // Obtener la invoice manualmente
-      const invoice = await stripe.invoices.retrieve(subscription.latest_invoice.id, {
-        expand: ['payment_intent']
-      });
-      clientSecret = invoice.payment_intent.client_secret;
-      console.log('✅ Client secret desde invoice manual');
+    // ✅ OBTENER LA INVOICE MANUALMENTE
+    const invoiceId = typeof subscription.latest_invoice === 'string' 
+      ? subscription.latest_invoice 
+      : subscription.latest_invoice?.id;
+
+    if (!invoiceId) {
+      throw new Error('No se pudo obtener el ID de la invoice');
     }
 
-    console.log('✅ Client secret:', clientSecret.substring(0, 20) + '...');
+    console.log('🔄 Obteniendo invoice:', invoiceId);
+
+    const invoice = await stripe.invoices.retrieve(invoiceId, {
+      expand: ['payment_intent']
+    });
+
+    console.log('✅ Invoice obtenida:', invoice.id);
+    console.log('✅ Payment Intent:', invoice.payment_intent?.id);
+
+    if (!invoice.payment_intent?.client_secret) {
+      throw new Error('No se pudo obtener el client_secret del payment intent');
+    }
+
+    const clientSecret = invoice.payment_intent.client_secret;
+    console.log('✅ Client secret obtenido:', clientSecret.substring(0, 20) + '...');
 
     res.status(200).json({
       status: 'success',
@@ -149,12 +157,13 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
     });
   } catch (error) {
     console.error('❌ Error completo:', error);
+    console.error('❌ Stack:', error.stack);
     return next(new AppError(`Error: ${error.message}`, 500));
   }
 });
 
 // ============================================
-// ADOPCIÓN - PAGO MENSUAL (FIXED)
+// ADOPCIÓN - PAGO MENSUAL (DEFINITIVO)
 // ============================================
 exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
   const stripe = getStripe();
@@ -189,7 +198,7 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
       console.log('✨ Nuevo cliente:', customer.id);
     }
 
-    // ✅ CAMBIO CRÍTICO: Crear subscription con expand correcto
+    // ✅ Crear subscription SIN expand
     const subscription = await stripe.subscriptions.create({
       customer: customer.id,
       items: [{ price: priceId }],
@@ -197,7 +206,6 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
       payment_settings: { 
         save_default_payment_method: 'on_subscription',
       },
-      expand: ['latest_invoice.payment_intent'],
       metadata: {
         userId: req.user._id.toString(),
         type: 'adopcion',
@@ -207,23 +215,32 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
     });
 
     console.log('🎉 Suscripción creada:', subscription.id);
+    console.log('🔍 Latest invoice ID:', subscription.latest_invoice);
 
-    // ✅ ALTERNATIVA: Si expand no funciona, obtener la invoice manualmente
-    let clientSecret;
-    
-    if (subscription.latest_invoice?.payment_intent?.client_secret) {
-      clientSecret = subscription.latest_invoice.payment_intent.client_secret;
-      console.log('✅ Client secret desde expand');
-    } else {
-      // Obtener la invoice manualmente
-      const invoice = await stripe.invoices.retrieve(subscription.latest_invoice.id, {
-        expand: ['payment_intent']
-      });
-      clientSecret = invoice.payment_intent.client_secret;
-      console.log('✅ Client secret desde invoice manual');
+    // ✅ OBTENER LA INVOICE MANUALMENTE
+    const invoiceId = typeof subscription.latest_invoice === 'string' 
+      ? subscription.latest_invoice 
+      : subscription.latest_invoice?.id;
+
+    if (!invoiceId) {
+      throw new Error('No se pudo obtener el ID de la invoice');
     }
 
-    console.log('✅ Client secret:', clientSecret.substring(0, 20) + '...');
+    console.log('🔄 Obteniendo invoice:', invoiceId);
+
+    const invoice = await stripe.invoices.retrieve(invoiceId, {
+      expand: ['payment_intent']
+    });
+
+    console.log('✅ Invoice obtenida:', invoice.id);
+    console.log('✅ Payment Intent:', invoice.payment_intent?.id);
+
+    if (!invoice.payment_intent?.client_secret) {
+      throw new Error('No se pudo obtener el client_secret del payment intent');
+    }
+
+    const clientSecret = invoice.payment_intent.client_secret;
+    console.log('✅ Client secret obtenido:', clientSecret.substring(0, 20) + '...');
 
     res.status(200).json({
       status: 'success',
@@ -235,6 +252,7 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
     });
   } catch (error) {
     console.error('❌ Error completo:', error);
+    console.error('❌ Stack:', error.stack);
     return next(new AppError(`Error: ${error.message}`, 500));
   }
 });
