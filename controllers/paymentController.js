@@ -67,10 +67,7 @@ exports.createApoyoPayment = catchAsync(async (req, res, next) => {
 });
 
 // ============================================
-// SUSCRIPCIÓN - PAGO MENSUAL
-// ============================================
-// ============================================
-// SUSCRIPCIÓN - PAGO MENSUAL (CORRECTED)
+// SUSCRIPCIÓN - PAGO MENSUAL (FIXED)
 // ============================================
 exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
   const stripe = getStripe();
@@ -87,62 +84,77 @@ exports.createSuscripcionPayment = catchAsync(async (req, res, next) => {
   const priceId = PRICE_IDS.suscripcion[plan];
   console.log('💳 Price ID seleccionado:', priceId);
 
-  // Buscar o crear cliente
-  let customer;
-  const existingCustomers = await stripe.customers.list({
-    email: req.user.email,
-    limit: 1,
-  });
-
-  if (existingCustomers.data.length > 0) {
-    customer = existingCustomers.data[0];
-    console.log('✅ Cliente existente:', customer.id);
-  } else {
-    customer = await stripe.customers.create({
+  try {
+    // Buscar o crear cliente
+    let customer;
+    const existingCustomers = await stripe.customers.list({
       email: req.user.email,
-      name: req.user.name,
-      metadata: { userId: req.user._id.toString() },
+      limit: 1,
     });
-    console.log('✨ Nuevo cliente:', customer.id);
+
+    if (existingCustomers.data.length > 0) {
+      customer = existingCustomers.data[0];
+      console.log('✅ Cliente existente:', customer.id);
+    } else {
+      customer = await stripe.customers.create({
+        email: req.user.email,
+        name: req.user.name,
+        metadata: { userId: req.user._id.toString() },
+      });
+      console.log('✨ Nuevo cliente:', customer.id);
+    }
+
+    // ✅ CAMBIO CRÍTICO: Crear subscription con expand correcto
+    const subscription = await stripe.subscriptions.create({
+      customer: customer.id,
+      items: [{ price: priceId }],
+      payment_behavior: 'default_incomplete',
+      payment_settings: { 
+        save_default_payment_method: 'on_subscription',
+      },
+      expand: ['latest_invoice.payment_intent'], // ✅ Esto debe funcionar
+      metadata: {
+        userId: req.user._id.toString(),
+        type: 'suscripcion',
+        plan,
+      },
+    });
+
+    console.log('🎉 Suscripción creada:', subscription.id);
+
+    // ✅ ALTERNATIVA: Si expand no funciona, obtener la invoice manualmente
+    let clientSecret;
+    
+    if (subscription.latest_invoice?.payment_intent?.client_secret) {
+      clientSecret = subscription.latest_invoice.payment_intent.client_secret;
+      console.log('✅ Client secret desde expand');
+    } else {
+      // Obtener la invoice manualmente
+      const invoice = await stripe.invoices.retrieve(subscription.latest_invoice.id, {
+        expand: ['payment_intent']
+      });
+      clientSecret = invoice.payment_intent.client_secret;
+      console.log('✅ Client secret desde invoice manual');
+    }
+
+    console.log('✅ Client secret:', clientSecret.substring(0, 20) + '...');
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        subscriptionId: subscription.id,
+        clientSecret: clientSecret,
+        customerId: customer.id,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error completo:', error);
+    return next(new AppError(`Error: ${error.message}`, 500));
   }
-
-  // ❌ ELIMINAR ESTO - No crear PaymentIntent manual
-  // const paymentIntent = await stripe.paymentIntents.create({...});
-
-  // ✅ SOLO crear la subscription
-  const subscription = await stripe.subscriptions.create({
-    customer: customer.id,
-    items: [{ price: priceId }],
-    payment_behavior: 'default_incomplete',
-    payment_settings: { 
-      save_default_payment_method: 'on_subscription',
-      payment_method_types: ['card']
-    },
-    expand: ['latest_invoice.payment_intent'],
-    metadata: {
-      userId: req.user._id.toString(),
-      type: 'suscripcion',
-      plan,
-    },
-  });
-
-  console.log('🎉 Suscripción creada:', subscription.id);
-
-  // ✅ OBTENER el clientSecret de la invoice automática
-  const clientSecret = subscription.latest_invoice.payment_intent.client_secret;
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      subscriptionId: subscription.id,
-      clientSecret: clientSecret,  // ✅ Este es el correcto
-      customerId: customer.id,
-    },
-  });
 });
 
 // ============================================
-// ADOPCIÓN - PAGO MENSUAL (CORRECTED)
+// ADOPCIÓN - PAGO MENSUAL (FIXED)
 // ============================================
 exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
   const stripe = getStripe();
@@ -157,60 +169,77 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
   const priceId = PRICE_IDS.adopcion[plan];
   console.log('💳 Price ID seleccionado:', priceId);
 
-  // Buscar o crear cliente
-  let customer;
-  const existingCustomers = await stripe.customers.list({
-    email: req.user.email,
-    limit: 1,
-  });
-
-  if (existingCustomers.data.length > 0) {
-    customer = existingCustomers.data[0];
-    console.log('✅ Cliente existente:', customer.id);
-  } else {
-    customer = await stripe.customers.create({
+  try {
+    // Buscar o crear cliente
+    let customer;
+    const existingCustomers = await stripe.customers.list({
       email: req.user.email,
-      name: req.user.name,
-      metadata: { userId: req.user._id.toString() },
+      limit: 1,
     });
-    console.log('✨ Nuevo cliente:', customer.id);
+
+    if (existingCustomers.data.length > 0) {
+      customer = existingCustomers.data[0];
+      console.log('✅ Cliente existente:', customer.id);
+    } else {
+      customer = await stripe.customers.create({
+        email: req.user.email,
+        name: req.user.name,
+        metadata: { userId: req.user._id.toString() },
+      });
+      console.log('✨ Nuevo cliente:', customer.id);
+    }
+
+    // ✅ CAMBIO CRÍTICO: Crear subscription con expand correcto
+    const subscription = await stripe.subscriptions.create({
+      customer: customer.id,
+      items: [{ price: priceId }],
+      payment_behavior: 'default_incomplete',
+      payment_settings: { 
+        save_default_payment_method: 'on_subscription',
+      },
+      expand: ['latest_invoice.payment_intent'],
+      metadata: {
+        userId: req.user._id.toString(),
+        type: 'adopcion',
+        plan,
+        ...(petId && { petId }),
+      },
+    });
+
+    console.log('🎉 Suscripción creada:', subscription.id);
+
+    // ✅ ALTERNATIVA: Si expand no funciona, obtener la invoice manualmente
+    let clientSecret;
+    
+    if (subscription.latest_invoice?.payment_intent?.client_secret) {
+      clientSecret = subscription.latest_invoice.payment_intent.client_secret;
+      console.log('✅ Client secret desde expand');
+    } else {
+      // Obtener la invoice manualmente
+      const invoice = await stripe.invoices.retrieve(subscription.latest_invoice.id, {
+        expand: ['payment_intent']
+      });
+      clientSecret = invoice.payment_intent.client_secret;
+      console.log('✅ Client secret desde invoice manual');
+    }
+
+    console.log('✅ Client secret:', clientSecret.substring(0, 20) + '...');
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        subscriptionId: subscription.id,
+        clientSecret: clientSecret,
+        customerId: customer.id,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error completo:', error);
+    return next(new AppError(`Error: ${error.message}`, 500));
   }
-
-  // ❌ ELIMINAR ESTO - No crear PaymentIntent manual
-  // const paymentIntent = await stripe.paymentIntents.create({...});
-
-  // ✅ SOLO crear la subscription
-  const subscription = await stripe.subscriptions.create({
-    customer: customer.id,
-    items: [{ price: priceId }],
-    payment_behavior: 'default_incomplete',
-    payment_settings: { 
-      save_default_payment_method: 'on_subscription',
-      payment_method_types: ['card']
-    },
-    expand: ['latest_invoice.payment_intent'],
-    metadata: {
-      userId: req.user._id.toString(),
-      type: 'adopcion',
-      plan,
-      ...(petId && { petId }),
-    },
-  });
-
-  console.log('🎉 Suscripción creada:', subscription.id);
-
-  // ✅ OBTENER el clientSecret de la invoice automática
-  const clientSecret = subscription.latest_invoice.payment_intent.client_secret;
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      subscriptionId: subscription.id,
-      clientSecret: clientSecret,  // ✅ Este es el correcto
-      customerId: customer.id,
-    },
-  });
 });
+
+
 // ============================================
 // ✅ WEBHOOK DE STRIPE - VERSIÓN MEJORADA
 // ============================================
