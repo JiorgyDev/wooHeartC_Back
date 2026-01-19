@@ -255,6 +255,57 @@ exports.createAdopcionPayment = catchAsync(async (req, res, next) => {
     console.error('❌ Stack:', error.stack);
     return next(new AppError(`Error: ${error.message}`, 500));
   }
+
+  // Crear Payment Intent
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amount * 100,
+    currency: 'usd',
+    customer: customer.id,
+    //hola
+    description: `Adopción WooHeart - Plan ${amount}/mes${petId ? ` - Pet: ${petId}` : ''}`,
+    metadata: {
+      userId: req.user._id.toString(),
+      type: 'adopcion',
+      plan,
+      priceId: priceId,
+      ...(petId && { petId }),
+    },
+    automatic_payment_methods: {
+      enabled: true,
+    },
+    setup_future_usage: 'off_session',
+  });
+
+  console.log('💰 Payment Intent creado:', paymentIntent.id);
+
+  // Crear la suscripción
+  const subscription = await stripe.subscriptions.create({
+    customer: customer.id,
+    items: [{ price: priceId }],
+    payment_behavior: 'default_incomplete',
+    payment_settings: {
+      save_default_payment_method: 'on_subscription',
+    },
+    metadata: {
+      userId: req.user._id.toString(),
+      type: 'adopcion',
+      plan,
+      initialPaymentIntentId: paymentIntent.id,
+      ...(petId && { petId }),
+    },
+  });
+
+  console.log('🎉 Suscripción creada:', subscription.id);
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      subscriptionId: subscription.id,
+      clientSecret: paymentIntent.client_secret,
+      customerId: customer.id,
+      paymentIntentId: paymentIntent.id,
+    },
+  });
 });
 
 

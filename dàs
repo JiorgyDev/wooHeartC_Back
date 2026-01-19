@@ -1,0 +1,437 @@
+[33mcommit ef27008e51f4be68c7b5103457755639a8b632ed[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sun Jan 18 22:26:36 2026 -0400
+
+    fix: backend likes v.04.03 ojo3
+
+[33mcommit e152671eff66166066fd7a16c0029ca42e4cd2ac[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sun Jan 18 22:16:13 2026 -0400
+
+    fix: backend likes v.04.03 ojo2
+
+[33mcommit b6c7b9e3a856ea84834e0f35124741a28e4492e1[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sun Jan 18 21:41:03 2026 -0400
+
+    fix: backend likes v.04.03 ojo
+
+[33mcommit 15865e255c176b4f21bffaac65cbb74eb23a3c79[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sat Jan 17 15:40:19 2026 -0400
+
+    fix: backend apoyo v.04
+
+[33mcommit b30be4bc415c6d167cb99c8e62a18dfdb3e86079[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sat Jan 17 09:40:30 2026 -0400
+
+    fix: backend likes v.04.03
+
+[33mcommit 08fd7df4f2913f2f54e7dba539e56a95a03e0a41[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Jan 16 18:27:27 2026 -0400
+
+    fix: backend likes v.04.02
+
+[33mcommit 0895620deb9f386a3b974083a5530757eea051d9[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Jan 16 17:20:35 2026 -0400
+
+    fix: backend likes v.04.01
+
+[33mcommit 0f062af2667995e2617c07d3657f3e879a614513[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Wed Jan 14 16:40:23 2026 -0400
+
+    fix: backend likes v.04
+
+[33mcommit 3bec90c79daf58deeec55554f25c289184281089[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sat Jan 10 00:33:36 2026 -0400
+
+    fix: backend likes v.03
+
+[33mcommit 68c1be76454589b86005121221621d87e879c11b[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Jan 9 15:19:12 2026 -0400
+
+    fix: backend likes v.02
+
+[33mcommit 4f9880abb894dc8f7da07782cef09c6bb662ce71[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Thu Jan 8 11:33:40 2026 -0400
+
+    fix: backend likes
+
+[33mcommit 8353c68c397c107d308eba896019f7dd58d13282[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sun Dec 28 18:41:56 2025 -0400
+
+    fix: wooheart v.08.11
+
+[33mcommit ba396145abd6bcab581bbc55c0b768435ca26076[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 26 00:26:24 2025 -0400
+
+    fix: wooheart v.08.10
+
+[33mcommit dde21ebb9d55bd0cee4b2530cd35c23757e51293[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 26 00:16:28 2025 -0400
+
+    fix: wooheart v.08.09
+
+[33mcommit 8e1dede83fecc26cc42a7a58e3978d7fad01fcff[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Mon Dec 22 14:33:18 2025 -0400
+
+    fix: wooheart v.08.08
+
+[33mcommit b2fe3d76a04488cc36f3448aa5f9a3a45216b146[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Tue Dec 16 23:43:13 2025 -0400
+
+    fix: crear payment intent manual para susc
+
+[33mcommit 9b4be03324c82f4589635d942659dd653ed35436[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Tue Dec 16 23:36:32 2025 -0400
+
+    fix: usar error_if_incomplete para payment_intent
+
+[33mcommit 9fa44d42a6253f9badd2d300e7af5e9b974091a4[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Tue Dec 16 23:16:47 2025 -0400
+
+    fix: validar client_secret en susc
+
+[33mcommit 58492597da04c2d64cef3f1e0d9065475649fee6[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Tue Dec 16 22:54:39 2025 -0400
+
+    debug:agregar logs de stripe en .env
+
+[33mcommit 4bc1d9608724d9a2511d4addc772b41cb2523068[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Tue Dec 16 17:22:35 2025 -0400
+
+    backend stripe v.03
+
+[33mcommit a63b7dbcc6e1b3798f1f752cba1afe9f0cebe175[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Tue Dec 16 17:07:40 2025 -0400
+
+    backend stripe v.02
+
+[33mcommit 0addf54bb99f6d43d723f3c0c7199f4306ab6723[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Wed Dec 10 15:55:11 2025 -0400
+
+    implementacion en stripe v.02
+
+[33mcommit ef4b5c107ce444d49327573b70344c60c3e639c1[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Wed Dec 10 15:35:46 2025 -0400
+
+    implementacion en stripe
+
+[33mcommit 4270fde9ac89683512c56325c8c691e5dbf14dca[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Tue Dec 9 18:27:47 2025 -0400
+
+    back casi completo
+
+[33mcommit ff65de90b238aee2463d15134b2957b28e9af990[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Mon Dec 8 15:41:47 2025 -0400
+
+    message implementado v.02
+
+[33mcommit 2b2ef8c9c36109dd9f4291d33857ed464a0491c4[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Mon Dec 8 14:01:42 2025 -0400
+
+    message implementado
+
+[33mcommit 09681a5f7a74a5500dc4de253d6367745110f4cf[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sat Dec 6 15:10:56 2025 -0400
+
+    olvido de contraseña
+
+[33mcommit 50cb2839ca8aeaebb9e88858d8e93465365e19fd[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sat Dec 6 13:15:25 2025 -0400
+
+    Migracion a sendgrid
+
+[33mcommit 85483748c07b2ccadbf5d54213ba6e164f82bfe6[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sat Dec 6 13:14:45 2025 -0400
+
+    Migracion a sendgrid
+
+[33mcommit 728b27c6716b081057f33ba1ef7fa157437b0675[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sat Dec 6 12:44:05 2025 -0400
+
+    Fix: Eliminar name del destinatario en brevo
+
+[33mcommit db78ba6f72d27b0c2f8525d135bf2d26c412a52e[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sat Dec 6 12:28:55 2025 -0400
+
+    Fix: Usar email con brevo V.01
+
+[33mcommit 10e46b107223e9c4ea67b760810c10bddf3cfb67[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sat Dec 6 12:13:39 2025 -0400
+
+    Fix: Usar email con brevo
+
+[33mcommit f3d05ae0a27a93feb2737b0d45d8e5a72c6f8edf[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 18:51:35 2025 -0400
+
+    Fix:Correct brevo import syntax
+
+[33mcommit 8cded2b2a24f2430e1109a3ddbcc6f42ad05ebef[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 18:44:29 2025 -0400
+
+    Fix:Agregar API key temporal con resend v.03.2
+
+[33mcommit d3367e41903761ec1611f7d5158e9aea925a4d93[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 18:32:02 2025 -0400
+
+    Fix:Agregar API key temporal con resend v.03.1
+
+[33mcommit d0f5188db6fb73f2087bdbaa6e9f6d56134c0b7d[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 18:27:26 2025 -0400
+
+    Fix:Agregar API key temporal con resend v.03.1
+
+[33mcommit 26d4da5cabe1ca6a0f199d9c5d56b5f9c4f1dc0b[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 18:00:04 2025 -0400
+
+    Fix:Agregar API key temporal con resend v.03
+
+[33mcommit 375d644803d496aef2b6f0c75a79b51dbd19cc64[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 17:50:01 2025 -0400
+
+    Fix:Agregar API key temporal con resend v.02
+
+[33mcommit 0861bfcfacab8422ef7432ad5ac195d2f4a3396e[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 17:37:05 2025 -0400
+
+    Fix:Agregar API key temporal con resend
+
+[33mcommit edcd0359780e29e3712ab621423988fee2abac11[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 17:09:17 2025 -0400
+
+    Fix:email de verificacion asincrono v.07
+
+[33mcommit c163e8d36eec7233e888f9eb17cf17092ab21c08[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 11:20:42 2025 -0400
+
+    Fix:email de verificacion asincrono v.03
+
+[33mcommit afc13e7cc60e53ee9911a9e87d49d3ba43a42122[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 11:10:53 2025 -0400
+
+    Fix:email de verificacion asincrono v.02
+
+[33mcommit 0b0cf08cc864bc372f4dd9b9bb92bb1af4c5a2f1[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 10:56:21 2025 -0400
+
+    Fix:email de verificacion asincrono
+
+[33mcommit 4f9d964fd4b23a467aaa48aa4660d5f8aee58408[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Dec 5 10:33:26 2025 -0400
+
+    Fix:email.js v.03.2
+
+[33mcommit 28018de781dc5c6205f0be42b4e96e65608c576f[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Thu Dec 4 10:55:24 2025 -0400
+
+    Fix:email.js v.03.1
+
+[33mcommit f4233d8511a52a353f74d83d690886ff299fe9c7[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Thu Dec 4 10:50:43 2025 -0400
+
+    Fix:email.js v.04
+
+[33mcommit 5a413c069e140f74ac30ce7193e6e8d2348b4903[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Wed Dec 3 17:31:05 2025 -0400
+
+    Fix:email.js v.03
+
+[33mcommit afd101c29208e85228211114901ca58d154f836c[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Wed Dec 3 17:02:53 2025 -0400
+
+    Fix:email.js v.02
+
+[33mcommit 8bb67a4c1a640536920674779950fbfc3c7babac[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Wed Dec 3 16:53:21 2025 -0400
+
+    Fix:email.js
+
+[33mcommit 129b859eda0c614754926135eee17de7b3159082[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Wed Dec 3 16:46:11 2025 -0400
+
+    Fix:downgrade nodemailer to v6.9.7
+
+[33mcommit 10750749d5afd1216c7a6949e566fc5586c3f609[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Wed Dec 3 11:07:00 2025 -0400
+
+    add rutas de verificacion de email
+
+[33mcommit bfdb5540448c16b575326456cd262cf0491d5fb2[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Mon Dec 1 17:20:34 2025 -0400
+
+    correccion de ruta middleware
+
+[33mcommit cba045aa5be6ecd938e16228c5ab976e06497c4a[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Mon Dec 1 17:13:43 2025 -0400
+
+    add sistema de comentarios v.02
+
+[33mcommit 3c496bd7bcbd777136bbaf7757a41dd396a4dc10[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Mon Dec 1 16:55:45 2025 -0400
+
+    add sistema de comentarios
+
+[33mcommit ff6ebe2c329b921e695c8459251ae745b1e92b1e[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Nov 21 19:19:39 2025 -0400
+
+    add mas caracteres
+
+[33mcommit 649221cf18c39d3a57efc62e32fab19ba72f27a6[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Wed Nov 19 17:05:31 2025 -0400
+
+    add debug logs
+
+[33mcommit 8e57ab0f365a570bb072ec309695867466c23a2a[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Mon Oct 13 16:22:06 2025 -0400
+
+    aumentando peticiones
+
+[33mcommit 80071444e2b0bb1959b85447d803eb5dedb129ac[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Sun Oct 12 21:09:02 2025 -0400
+
+    backend Corrigiendo errores de crear mascota
+
+[33mcommit 7d94e1407d9bbfe57341b1a87ae8a208aa58e96a[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Mon Sep 29 16:25:15 2025 -0400
+
+    login backend v.2
+
+[33mcommit 07e48e3b0464dbfbfb18e9ed12757c7cfbf8d68f[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Mon Sep 29 15:54:28 2025 -0400
+
+    login backend
+
+[33mcommit 6080542107860c2d46471f2496041d2fb35c0d40[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Sep 26 15:54:27 2025 -0400
+
+    restaurando imagenes v2.3 backend
+
+[33mcommit f2867b02e99d997a5c50df557567052383857aaa[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Sep 26 15:37:24 2025 -0400
+
+    restaurando imagenes v2.2 backend
+
+[33mcommit 1ebca4efc989674ec2ace0604fcd5d2460cf998a[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Sep 26 15:07:44 2025 -0400
+
+    restaurando imagenes v2 backend
+
+[33mcommit 6c3f52d110bff17b7ec967996be527ec9a9401a5[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Fri Sep 26 10:05:55 2025 -0400
+
+    restaurando imagenes v1 backend
+
+[33mcommit 42dd49f31041eae51c3ba210afdada6609428828[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Thu Sep 25 12:22:26 2025 -0400
+
+    boton de ocultar v.1 back
+
+[33mcommit 9142343a26a5892a2ff863497665de81e7b9344c[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Wed Sep 17 09:53:45 2025 -0400
+
+    editar animal
+
+[33mcommit e1061629713f4aa74f27e34289548c8a7315cc6c[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Tue Sep 16 16:06:47 2025 -0400
+
+    corrigiendo error
+
+[33mcommit 7cac6925d7de7e28a7c8daf8206e62a0d73257ae[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Tue Sep 16 15:19:05 2025 -0400
+
+    arreglando el backend
+
+[33mcommit b1f29384f8cda72ea93a686d59dc4a6bd8c09318[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Mon Sep 15 16:33:20 2025 -0400
+
+    subida de imagenes v2
+
+[33mcommit b3acb9a7879d5c82da4a0f953572c24dd4fa0a6b[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Mon Sep 15 16:24:24 2025 -0400
+
+    subida de imagenes
+
+[33mcommit 9aa65849a8b4abd0c0374dc378e575b5b8666940[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Thu Sep 11 15:58:45 2025 -0400
+
+    modificando auth y authcontroller
+
+[33mcommit 2b53628ea19fff7f7d9d9bb99ce76b6116892a9d[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Thu Sep 11 15:12:48 2025 -0400
+
+    arreglo para el vercel
+
+[33mcommit 10606a46683c6f9576e444e4114396f9eff51c44[m
+Author: JiorgyDev <lezj795@gmail.com>
+Date:   Tue Sep 9 17:28:05 2025 -0400
+
+    Initial commit - WooHeart backend
