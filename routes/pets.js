@@ -16,7 +16,8 @@ const {
   getComments,
   incrementShare,
   getLikedPets,
-  getAdoptedPets     // ✅ AGREGADO - Nueva función
+  getAdoptedPets,     // ✅ AGREGADO - Nueva función
+  getSupportedPets  
 } = require('../controllers/petController');
 
 // ============================================
@@ -59,6 +60,7 @@ router.get('/', optionalAuth, getPets);           // GET /api/v1/pets - Feed pri
 router.get('/popular', getPopularPets);           // GET /api/v1/pets/popular - Mascotas populares
 router.get('/liked', protect, getLikedPets);      // GET /api/v1/pets/liked - Mascotas con like
 router.get('/adopted', protect, getAdoptedPets);  // ✅ AGREGADO - GET /api/v1/pets/adopted - Mascotas adoptadas
+router.get('/supported', protect, getSupportedPets); // ✅ AGREGAR ESTA LÍNEA
 
 // ============================================
 // RUTAS DE INTERACCIÓN CON PARÁMETRO :id

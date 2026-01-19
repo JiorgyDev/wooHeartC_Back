@@ -797,6 +797,94 @@ console.log('🔍 Pet IDs ANTES de filtrar:', activeAdoptions.map(a => ({
   }
 };
 
+// @desc    Obtener mascotas que el usuario ha apoyado (últimas 10 del refugio)
+// @route   GET /api/v1/pets/supported
+// @access  Private
+const getSupportedPets = async (req, res) => {
+  try {
+    console.log('⭐ Obteniendo mascotas apoyadas del usuario:', req.user.name);
+
+    const userId = req.user._id;
+
+    // Verificar si el usuario tiene donaciones
+    const Payment = require('../models/payment');
+    
+    const userDonations = await Payment.find({
+      user: userId,
+      type: 'apoyo',
+      status: 'succeeded'
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log(`📊 Donaciones encontradas: ${userDonations.length}`);
+
+    // Si NO tiene donaciones, retornar vacío
+    if (userDonations.length === 0) {
+      console.log('📊 El usuario no ha hecho donaciones');
+      return res.status(200).json({
+        success: true,
+        data: {
+          pets: [],
+          total: 0,
+          message: 'Realiza una donación para ver las mascotas que apoyas'
+        }
+      });
+    }
+
+    // Obtener las últimas 10 mascotas del refugio
+    const supportedPets = await Pet.find({
+      adoptionStatus: 'available'
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+
+    console.log(`📊 Mascotas apoyadas encontradas: ${supportedPets.length}`);
+
+    // Agregar información adicional
+    const petsWithInfo = supportedPets.map(pet => {
+      const likesCount = pet.likes ? pet.likes.length : 0;
+      const commentsCount = pet.comments ? pet.comments.length : 0;
+
+      const isLiked = pet.likes ? pet.likes.some(
+        like => like.userId.toString() === userId.toString()
+      ) : false;
+
+      return {
+        ...pet,
+        likesCount,
+        commentsCount,
+        isLiked,
+        supportInfo: {
+          totalDonated: userDonations.reduce((sum, d) => sum + d.amount, 0),
+          lastDonation: userDonations[0].createdAt,
+          donationsCount: userDonations.length
+        }
+      };
+    });
+
+    console.log(`✅ Retornando ${petsWithInfo.length} mascotas apoyadas`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        pets: petsWithInfo,
+        total: petsWithInfo.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error obteniendo mascotas apoyadas:', error);
+    console.error('❌ Stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener mascotas apoyadas',
+      error: error.message
+    });
+  }
+};
+
 // ============================================
 // ACTUALIZAR EL module.exports AL FINAL
 // ============================================
@@ -815,5 +903,6 @@ module.exports = {
   getComments,        // ✅ NUEVO
   incrementShare, 
   getLikedPets,
-  getAdoptedPets       // ✅ NUEVO
+  getAdoptedPets,        // ✅ NUEVO
+  getSupportedPets
 };
