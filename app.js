@@ -25,6 +25,7 @@ app.use(
     origin: [
       "http://localhost:3000",
       "https://woo-heart-c-front-iakf.vercel.app",
+      "https://woo-heart-c-front-mu.vercel.app",
     ],
     credentials: true,
   })
