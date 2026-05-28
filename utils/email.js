@@ -1,29 +1,29 @@
-const { Resend } = require('resend');
+const Brevo = require('@getbrevo/brevo');
 
 const sendEmail = async (options) => {
-  console.log('📧 [RESEND] Enviando a:', options.email);
+  console.log('📧 [BREVO] Enviando a:', options.email);
 
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY no está configurada');
+  if (!process.env.BREVO_API_KEY) {
+    throw new Error('BREVO_API_KEY no está configurada');
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const apiInstance = new Brevo.TransactionalEmailsApi();
+  apiInstance.authentications['apiKey'].apiKey = process.env.BREVO_API_KEY;
 
-  const { data, error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
-    to: options.email,
-    subject: options.subject,
-    text: options.message,
-    html: options.html || `<p>${options.message}</p>`,
-  });
+  const sendSmtpEmail = new Brevo.SendSmtpEmail();
+  sendSmtpEmail.to = [{ email: options.email }];
+  sendSmtpEmail.sender = { 
+    email: process.env.EMAIL_FROM || 'jorgewooheart@gmail.com',
+    name: 'WooHeart'
+  };
+  sendSmtpEmail.subject = options.subject;
+  sendSmtpEmail.textContent = options.message;
+  sendSmtpEmail.htmlContent = options.html || `<p>${options.message}</p>`;
 
-  if (error) {
-    console.error('❌ [RESEND] Error:', error);
-    throw new Error(error.message);
-  }
-
-  console.log('✅ [RESEND] Enviado! ID:', data.id);
-  return { success: true, messageId: data.id };
+  const response = await apiInstance.sendTransacEmail(sendSmtpEmail);
+  
+  console.log('✅ [BREVO] Enviado! ID:', response.messageId);
+  return { success: true, messageId: response.messageId };
 };
 
 module.exports = sendEmail;
