@@ -9,8 +9,8 @@ const sendEmail = require('../utils/email');
 
 // Función para crear y enviar JWT
 const signToken = (id, role) => {
-  return jwt.sign({ 
-    id, 
+  return jwt.sign({
+    id,
     role
   }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '90d',
@@ -18,8 +18,8 @@ const signToken = (id, role) => {
 };
 
 const createSendToken = (user, statusCode, res) => {
-const token = signToken(user._id, user.role);  
-  
+  const token = signToken(user._id, user.role);
+
   const cookieOptions = {
     expires: new Date(
       Date.now() + (process.env.JWT_COOKIE_EXPIRES_IN || 90) * 24 * 60 * 60 * 1000
@@ -117,13 +117,13 @@ exports.register = catchAsync(async (req, res, next) => {
       </div>
     `
   })
-  .then(() => {
-    console.log('✅ [ASYNC] Email de verificación enviado exitosamente a:', newUser.email);
-  })
-  .catch((err) => {
-    console.error('❌ [ASYNC] Error enviando email de verificación:', err);
-    // El email falló, pero el usuario ya fue creado y la respuesta enviada
-  });
+    .then(() => {
+      console.log('✅ [ASYNC] Email de verificación enviado exitosamente a:', newUser.email);
+    })
+    .catch((err) => {
+      console.error('❌ [ASYNC] Error enviando email de verificación:', err);
+      // El email falló, pero el usuario ya fue creado y la respuesta enviada
+    });
 });
 
 // ← AQUÍ TERMINA register, continúa con exports.login
@@ -147,13 +147,13 @@ exports.login = catchAsync(async (req, res, next) => {
   user.lastActive = new Date();
   await user.save({ validateBeforeSave: false });
 
- // 4) Verificar si el email está verificado
-if (!user.isVerified) {
-  return next(new AppError('Por favor verifica tu email antes de iniciar sesión', 401));
-}
+  // 4) Verificar si el email está verificado
+  if (!user.isVerified) {
+    return next(new AppError('Por favor verifica tu email antes de iniciar sesión', 401));
+  }
 
-// 5) Si todo está bien, enviar token al cliente
-createSendToken(user, 200, res);
+  // 5) Si todo está bien, enviar token al cliente
+  createSendToken(user, 200, res);
 });
 
 // NUEVA FUNCIÓN: Obtener datos del usuario autenticado
@@ -165,7 +165,7 @@ exports.getMe = catchAsync(async (req, res, next) => {
 
   // Buscar el usuario en la base de datos con información completa
   const user = await User.findById(req.user.id);
-  
+
   if (!user) {
     return next(new AppError('Usuario no encontrado', 404));
   }
@@ -186,7 +186,7 @@ exports.logout = (req, res) => {
     expires: new Date(Date.now() + 10 * 1000),
     httpOnly: true
   });
-  
+
   res.status(200).json({ status: 'success' });
 };
 
@@ -221,11 +221,11 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   // 4) Verificar si el usuario cambió la contraseña después de que se emitió el token
   // (implementar según necesidades)
-if (decoded.role && decoded.role !== currentUser.role) {
-  return next(
-    new AppError('Tu rol ha cambiado. Por favor inicia sesión nuevamente.', 401)
-  );
-}
+  if (decoded.role && decoded.role !== currentUser.role) {
+    return next(
+      new AppError('Tu rol ha cambiado. Por favor inicia sesión nuevamente.', 401)
+    );
+  }
   // Otorgar acceso a la ruta protegida
   req.user = currentUser;
   next();
@@ -245,13 +245,13 @@ exports.restrictTo = (...roles) => {
 exports.adminOnly = exports.restrictTo(ROLES.ADMIN);
 
 exports.shelterCoordinatorOrAdmin = exports.restrictTo(
-  ROLES.SHELTER_COORDINATOR, 
+  ROLES.SHELTER_COORDINATOR,
   ROLES.ADMIN
 );
 
 exports.authenticatedUsers = exports.restrictTo(
-  ROLES.USER, 
-  ROLES.SHELTER_COORDINATOR, 
+  ROLES.USER,
+  ROLES.SHELTER_COORDINATOR,
   ROLES.ADMIN
 );
 
@@ -264,7 +264,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 
   // 1) Buscar usuario
   const user = await User.findOne({ email });
-  
+
   if (!user) {
     return next(new AppError('No existe usuario con ese email', 404));
   }
@@ -277,7 +277,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     .createHash('sha256')
     .update(resetCode)
     .digest('hex');
-  
+
   user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutos
 
   await user.save({ validateBeforeSave: false });
@@ -360,7 +360,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   user.password = newPassword;
   user.resetPasswordToken = undefined;
   user.resetPasswordExpires = undefined;
-  
+
   await user.save(); // El middleware pre-save hasheará la contraseña
 
   console.log('✅ Contraseña actualizada para:', user.email);
@@ -446,7 +446,7 @@ exports.sendVerificationCode = catchAsync(async (req, res, next) => {
     .createHash('sha256')
     .update(verificationCode)
     .digest('hex');
-  
+
   user.verificationCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutos
 
   await user.save({ validateBeforeSave: false });
@@ -538,7 +538,7 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
 exports.optionalAuth = async (req, res, next) => {
   try {
     let token;
-    
+
     // Intentar obtener token del header
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
@@ -555,7 +555,7 @@ exports.optionalAuth = async (req, res, next) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const currentUser = await User.findById(decoded.id);
-      
+
       if (!currentUser) {
         console.log('⚠️ Token válido pero usuario no existe');
         req.user = null;
