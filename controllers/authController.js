@@ -147,8 +147,13 @@ exports.login = catchAsync(async (req, res, next) => {
   user.lastActive = new Date();
   await user.save({ validateBeforeSave: false });
 
-  // 4) Si todo está bien, enviar token al cliente
-  createSendToken(user, 200, res);
+ // 4) Verificar si el email está verificado
+if (!user.isVerified) {
+  return next(new AppError('Por favor verifica tu email antes de iniciar sesión', 401));
+}
+
+// 5) Si todo está bien, enviar token al cliente
+createSendToken(user, 200, res);
 });
 
 // NUEVA FUNCIÓN: Obtener datos del usuario autenticado
