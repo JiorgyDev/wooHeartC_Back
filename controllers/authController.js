@@ -48,9 +48,40 @@ exports.register = catchAsync(async (req, res, next) => {
 
   // Verificar si el email ya existe
   const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    return next(new AppError('El email ya está registrado', 400));
+if (existingUser) {
+  // Si existe pero no verificó, reenviar código y dejarlo verificar
+  if (!existingUser.isVerified) {
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    existingUser.verificationCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
+    existingUser.verificationCodeExpires = Date.now() + 10 * 60 * 1000;
+    await existingUser.save({ validateBeforeSave: false });
+
+    // Enviar email en background
+    sendEmail({
+      email: existingUser.email,
+      subject: 'Código de verificación - WooHeart',
+      message: `Tu código es: ${verificationCode}`,
+      html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #FE8043;">Verifica tu email 🐾</h2>
+        <p>Hola <strong>${existingUser.name}</strong>, aquí tu nuevo código:</p>
+        <div style="background:#f5f5f5; padding:20px; text-align:center; font-size:32px; font-weight:bold; letter-spacing:5px; border-radius:8px; margin:20px 0;">
+          ${verificationCode}
+        </div>
+        <p>Expira en <strong>10 minutos</strong>.</p>
+      </div>`
+    }).catch(err => console.error('❌ Error enviando email:', err));
+
+    // Responder con token para que Flutter lo lleve a verificación
+    return res.status(200).json({
+      status: 'pending_verification',
+      message: 'Te reenviamos el código de verificación',
+      token: signToken(existingUser._id, existingUser.role),
+      data: { user: existingUser }
+    });
   }
+
+  return next(new AppError('El email ya está registrado', 400));
+}
 
   // Crear nuevo usuario
   const userData = {
